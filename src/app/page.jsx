@@ -1,83 +1,100 @@
 import React from 'react';
-import { Search, Plus, Building2 } from 'lucide-react';
+import Link from 'next/link';
+import { Activity, ArrowRight, LogIn, Clock, ShieldCheck } from 'lucide-react';
 
-const StatCard = ({ label, value, trend, colorClass }) => (
-  <div className="bg-[#11141b] border border-gray-800 p-5 rounded-2xl">
-    <p className="text-gray-500 text-sm mb-1">{label}</p>
-    <div className="flex items-baseline gap-3">
-      <h4 className={`text-2xl font-bold ${colorClass}`}>{value}</h4>
-      {trend && <span className="text-xs text-emerald-500">{trend}</span>}
-    </div>
-  </div>
-);
-
-export default function Dashboard() {
-  const industries = [
-    { name: 'Apex Cardiology', load: 78, status: 'Active' },
-    { name: 'City Dental', load: 45, status: 'Active' },
-    { name: 'Sunrise Pediatrics', load: 92, status: 'Critical' }
-  ];
-
+export default function IndexPage() {
   return (
-    <main className="flex-1 bg-[#05070a] p-8 text-white min-h-screen">
-      <header className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold">Industry Ecosystem</h2>
-          <p className="text-gray-500 font-medium">Monitoring all medical units</p>
+    <div className="min-h-screen bg-[#F0F2F5] flex flex-col font-sans antialiased">
+      
+      {/* 1. NAVIGATION BAR */}
+      <nav className="h-20 px-8 lg:px-20 flex items-center justify-between bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-health-green rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <Activity className="text-white" size={24} strokeWidth={3} />
+          </div>
+          <span className="text-2xl font-black tracking-tighter italic text-slate-900">QueueCare</span>
         </div>
         
-        <div className="flex gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-            <input 
-              placeholder="Search industries..." 
-              className="bg-[#11141b] border border-gray-800 rounded-lg pl-10 pr-4 py-2 outline-none focus:border-[#10B981] transition-colors"
-            />
-          </div>
-          <button className="bg-[#10B981] hover:bg-emerald-400 text-black font-bold py-2 px-6 rounded-lg flex items-center gap-2">
-            <Plus size={20} /> Create New
+        <Link href="/login">
+          <button className="px-8 py-2.5 bg-staff-blue hover:bg-blue-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+            Login
           </button>
-        </div>
-      </header>
+        </Link>
+      </nav>
 
-      {/* Top Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <StatCard label="Total Active Queues" value="145" trend="↑ 12%" colorClass="text-white" />
-        <StatCard label="Avg. Wait Time" value="24m" trend="↓ 5%" colorClass="text-blue-400" />
-        <StatCard label="Critical Loads" value="7" colorClass="text-[#EF4444]" />
-        <StatCard label="System Health" value="98%" colorClass="text-[#10B981]" />
-      </div>
-
-      {/* Industry Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {industries.map((item, i) => (
-          <div key={i} className="bg-[#11141b] border border-gray-800 p-6 rounded-2xl hover:border-[#10B981]/50 transition-all cursor-pointer group">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-[#10B981]/10">
-                <Building2 className="text-[#10B981]" />
-              </div>
-              <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${
-                item.status === 'Critical' ? 'bg-rose-500/10 text-rose-500' : 'bg-[#10B981]/10 text-[#10B981]'
-              }`}>
-                {item.status}
-              </span>
-            </div>
-            <h4 className="text-xl font-bold mb-4">{item.name}</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-medium uppercase tracking-wider text-gray-500">
-                <span>Current Load</span>
-                <span>{item.load}%</span>
-              </div>
-              <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-1000 ${item.load > 80 ? 'bg-[#EF4444]' : 'bg-[#10B981]'}`}
-                  style={{ width: `${item.load}%` }}
-                />
-              </div>
+      {/* 2. MAIN WORKSPACE SLAB */}
+      <main className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="bg-white w-full max-w-7xl rounded-[48px] shadow-sm border border-gray-100 p-10 md:p-20 flex flex-col md:flex-row items-center gap-16">
+          
+          {/* LEFT: THE CLINICAL VISUAL */}
+          <div className="w-full md:w-1/2">
+            <div className="relative aspect-[4/3] rounded-[48px] overflow-hidden border-[12px] border-[#F2F4F7] shadow-2xl">
+              <img 
+                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=800" 
+                alt="Medical Professional"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
-        ))}
-      </div>
-    </main>
+
+          {/* RIGHT: THE REAL CONTENT */}
+          <div className="w-full md:w-1/2 space-y-10">
+            <div className="space-y-6">
+              <h1 className="text-6xl lg:text-7xl font-black text-slate-900 leading-[1.05] tracking-tight">
+                Queue <span className="text-health-green">Care</span>, <br />
+                Anywhere.
+              </h1>
+              
+              {/* RESTORED CONTENT: Replacing the boxes with actual copy */}
+              <div className="space-y-6 max-w-lg">
+                <p className="text-2xl font-semibold text-slate-500 leading-relaxed">
+                  Skip the waiting room. Experience real-time transparency in healthcare with your signature queuing partner.
+                </p>
+                
+                <ul className="space-y-4">
+                  <li className="flex items-center gap-3 text-slate-600 font-bold text-lg">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-health-green">
+                      <Clock size={20} />
+                    </div>
+                    Live wait-time estimates & updates
+                  </li>
+                  <li className="flex items-center gap-3 text-slate-600 font-bold text-lg">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-health-green">
+                      <ShieldCheck size={20} />
+                    </div>
+                    Verified medical institutions only
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 3. SIGNATURE 45° ACTIONS */}
+            <div className="flex flex-col sm:flex-row items-center gap-10 pt-6">
+              
+              {/* Join Queue (Green) */}
+              <Link href="/join" className="w-full sm:w-auto relative group">
+                <div className="absolute inset-0 bg-health-green-depth rounded-3xl translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-300 ease-out" />
+                <button className="relative w-full flex items-center justify-center gap-4 px-12 py-5 bg-health-green text-white text-2xl font-black rounded-3xl border-2 border-emerald-400/20 transition-all duration-300 ease-out transform group-hover:-translate-x-1 group-hover:-translate-y-1 active:translate-x-1 active:translate-y-1">
+                  Join Queue <ArrowRight strokeWidth={4} size={28} />
+                </button>
+              </Link>
+              
+              {/* Login (Blue) */}
+              <Link href="/login" className="w-full sm:w-auto relative group">
+                <div className="absolute inset-0 bg-gray-200 rounded-3xl translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-300 ease-out" />
+                <button className="relative w-full flex items-center justify-center gap-4 px-12 py-5 bg-white border-2 border-gray-100 text-slate-900 group-hover:text-staff-blue group-hover:border-staff-blue text-2xl font-black rounded-3xl transition-all duration-300 ease-out transform group-hover:-translate-x-1 group-hover:-translate-y-1 active:translate-x-1 active:translate-y-1">
+                  Login <LogIn size={28} />
+                </button>
+              </Link>
+
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="p-10 text-center text-gray-400 font-bold text-xs tracking-widest uppercase border-t border-gray-100/50">
+        &copy; 2026 QueueCare Healthcare Solutions
+      </footer>
+    </div>
   );
 }
