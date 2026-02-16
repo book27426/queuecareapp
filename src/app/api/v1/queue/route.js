@@ -1,3 +1,6 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+
 export async function POST(req) {
   const { number, user_id, queue_list_id } = await req.json();
 
