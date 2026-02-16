@@ -15,7 +15,7 @@ export default function IndexPage() {
           <span className="text-2xl font-black tracking-tighter italic text-slate-900">QueueCare</span>
         </div>
         
-        <Link href="/login">
+        <Link href="/staff">
           <button className="px-8 py-2.5 bg-staff-blue hover:bg-blue-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
             Login
           </button>
@@ -80,7 +80,7 @@ export default function IndexPage() {
               </Link>
               
               {/* Login (Blue) */}
-              <Link href="/login" className="w-full sm:w-auto relative group">
+              <Link href="/staff" className="w-full sm:w-auto relative group">
                 <div className="absolute inset-0 bg-gray-200 rounded-3xl translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-300 ease-out" />
                 <button className="relative w-full flex items-center justify-center gap-4 px-12 py-5 bg-white border-2 border-gray-100 text-slate-900 group-hover:text-staff-blue group-hover:border-staff-blue text-2xl font-black rounded-3xl transition-all duration-300 ease-out transform group-hover:-translate-x-1 group-hover:-translate-y-1 active:translate-x-1 active:translate-y-1">
                   Login <LogIn size={28} />
@@ -93,7 +93,6 @@ export default function IndexPage() {
       </main>
 
       <footer className="p-10 text-center text-gray-400 font-bold text-xs tracking-widest uppercase border-t border-gray-100/50">
-        &copy; 2026 QueueCare Healthcare Solutions
       </footer>
     </div>
   );
