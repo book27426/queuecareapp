@@ -14,13 +14,28 @@ export async function POST(req) {
       );
     }
 
-    await db.query(
-      `INSERT INTO user (name, cookie_token, phone_num)
-       VALUES ($1, $2, $3)`,
-      [name, cookie_token, phone_num]
+    const { rows } = await db.query(
+      `INSERT INTO users (name, phone_num)
+       VALUES ($1, $2)
+       RETURNING id`,
+      [name, phone_num]
     );
 
-    return NextResponse.json(queue, { status: 201 });
+    const user_id = rows[0].id;
+
+    await db.query(
+      `INSERT INTO cookie (cookie_token, user_id)
+       VALUES ($1, $2)`,
+      [cookie_token, user_id]
+    );
+
+    await db.query(
+      `INSERT INTO log (user_id, action_type,target)
+       VALUES ($1, $2, $3)`,
+      [user_id, "create", "user"]
+    );
+
+    return NextResponse.json(rows[0], { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { message: err.message },
