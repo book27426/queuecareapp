@@ -1,101 +1,163 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Ticket, Clock, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowRight, Ticket, Clock, ShieldCheck, HeartHandshake, Globe, Activity 
+} from 'lucide-react';
 import { Navbar } from "@/components/Navbar";
-import { Box, Text, Stack, Group, Title } from '@mantine/core';
+import { 
+  Box, Text, Stack, Group, Title, Container, Button, ThemeIcon, SimpleGrid 
+} from '@mantine/core';
+
+const QueueCareLogo = () => (
+  <Group gap="xs" wrap="nowrap" style={{ pointerEvents: 'none' }}>
+    <Box 
+      style={{ 
+        width: '40px', height: '40px', backgroundColor: '#2563EB', borderRadius: '50%', 
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+      }}
+    >
+      <Activity size={22} color="white" strokeWidth={2.5} />
+    </Box>
+    <Text 
+      span 
+      style={{ 
+        fontFamily: '"Plus Jakarta Sans", sans-serif', fontSize: '22px', fontWeight: 800, 
+        letterSpacing: '-0.02em', color: 'inherit', textTransform: 'uppercase', 
+        lineHeight: 1, display: 'inline-block'
+      }}
+    >
+      QUEUECARE
+    </Text>
+  </Group>
+);
 
 export default function IndexPage() {
   const router = useRouter();
-  const [activeQueueId, setActiveQueueId] = useState(null);
-
-  useEffect(() => {
-    const savedQueue = localStorage.getItem('user_queue_id');
-    if (savedQueue) setActiveQueueId(savedQueue);
-  }, []);
 
   return (
-    <Box className="min-h-screen bg-[#EBEDF0] flex flex-col font-sans antialiased overflow-x-hidden">
-      <Box className="fixed inset-0 pointer-events-none opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]" />
-      
+    <Box className="min-h-screen bg-[#FDFDFD] flex flex-col antialiased overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       <Navbar user={null} /> 
 
-      <main className="flex-1 flex items-center justify-center p-6 lg:p-10 z-10">
-        <Box 
-          className="bg-white w-full max-w-5xl border-[3px] border-slate-900 p-8 md:p-14 lg:p-20 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 relative"
-          style={{ borderRadius: '0px', boxShadow: '15px 15px 0px rgba(15, 23, 42, 0.05)' }}
-        >
-          <div className="w-full lg:w-[45%] relative group">
-            <div className="absolute inset-0 bg-[#10B981] translate-x-3 translate-y-3 group-hover:translate-x-5 group-hover:translate-y-5 transition-transform duration-300" />
-            <div className="relative aspect-square overflow-hidden border-[4px] border-slate-900 bg-slate-100 group-hover:-translate-x-1 group-hover:-translate-y-1 transition-transform duration-300">
-              <img 
-                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1000" 
-                alt="Medical Care" className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
-              />
-            </div>
-          </div>
+      <main className="flex-1 z-10">
+        {/* SECTION 1: HERO (ปุ่มคู่ขนานเพื่อความสมมาตร) */}
+        <Box className="relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[65vh] bg-[#F1F5F9] -z-10" 
+               style={{ borderBottomLeftRadius: '10% 100%', borderBottomRightRadius: '10% 100%' }} />
+          
+          <Container size="lg" className="pt-16 pb-24 md:py-32">
+            <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+              <div className="w-full lg:w-1/2 space-y-10 text-center lg:text-left">
+                <Stack gap="xl">
+                  <Group justify={{ base: 'center', lg: 'flex-start' }} gap="xs">
+                    <Text className="tracking-[0.2em] text-[#64748B] font-bold text-[10px] uppercase border-b-2 border-blue-100 pb-1">
+                      Verified Institutional Standard
+                    </Text>
+                  </Group>
 
-          <div className="w-full lg:w-[55%] space-y-8 lg:space-y-10">
-            <div className="space-y-4">
-              
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 leading-[0.85] tracking-tighter italic uppercase">
-                Queue <span className="text-[#10B981]">Care</span> <br /> 
-                <span className="text-3xl md:text-4xl text-slate-400">Simplified.</span>
-              </h1>
-              
-              <div className="space-y-6 max-w-md">
-                <p className="text-lg lg:text-xl font-bold text-slate-500 italic leading-snug">
-                  Skip the waiting room. Experience real-time transparency in healthcare workstation.
-                </p>
-                
-                <Stack gap="sm">
-                  <FeatureItem icon={<Clock size={20} strokeWidth={3} />} text="Live wait-time estimates & updates" />
-                  <FeatureItem icon={<ShieldCheck size={20} strokeWidth={3} />} text="Verified medical institutions only" />
+                  <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-[#1E293B] leading-[1.1] tracking-tighter">
+                    Modern access to <br/>
+                    <span className="text-blue-600">healthcare flow.</span>
+                  </h1>
+                  
+                  <Text className="text-lg md:text-xl text-[#64748B] leading-relaxed max-w-lg mx-auto lg:mx-0 font-medium">
+                    จัดการเวลาของคุณอย่างมีเกียรติด้วยระบบจัดการคิวที่โปร่งใสและตรวจสอบได้แบบ Real-time
+                  </Text>
                 </Stack>
+
+                {/* FIXED: แสดงทั้ง 2 ปุ่มคู่กันเสมอเพื่อความสมมาตรและอิสระในการใช้งาน */}
+                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4 w-full px-4 sm:px-0">
+                  <Button 
+                    fullWidth 
+                    size="xl" radius="md" 
+                    onClick={() => router.push('/join')}
+                    className="bg-[#1E293B] hover:bg-slate-800 text-white h-16 md:h-20 font-bold shadow-2xl sm:w-auto px-10"
+                    rightSection={<ArrowRight size={22} />}
+                  >
+                    Join Queue
+                  </Button>
+
+                  <Button 
+                    fullWidth
+                    variant="white" size="xl" radius="md" 
+                    onClick={() => router.push(`/myqueue`)}
+                    className="h-16 md:h-20 font-bold text-[#1E293B] border border-slate-200 shadow-sm sm:w-auto hover:bg-slate-50"
+                    leftSection={<Ticket size={24} className="text-blue-600" />}>
+                    คิวของฉัน
+                  </Button>
+                </div>
+              </div>
+
+              <div className="w-full lg:w-1/2 flex justify-center px-4">
+                <Box className="relative w-full max-w-[540px] aspect-[4/3] rounded-[40px] overflow-hidden bg-white shadow-2xl border-[12px] border-white">
+                  <img 
+                    src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1000" 
+                    alt="Clinic" className="w-full h-full object-cover"
+                  />
+                  <Box className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent" />
+                </Box>
               </div>
             </div>
+          </Container>
+        </Box>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
-              
-              <div className="relative group w-full sm:w-auto">
-                <div className="absolute inset-0 bg-slate-900 translate-x-2 translate-y-2 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-300" />
-                <button 
-                  onClick={() => router.push('/join')}
-                  className="relative w-full px-10 py-4 bg-[#10B981] text-white text-lg font-black border-2 border-slate-900 uppercase group-hover:-translate-x-1 group-hover:-translate-y-1 transition-transform duration-300 cursor-pointer flex items-center justify-center gap-3 active:translate-x-1 active:translate-y-1 active:shadow-none"
-                >
-                  Join Queue <ArrowRight strokeWidth={4} size={20} />
-                </button>
-              </div>
+        {/* SECTION 2: FEATURES (สมมาตรกึ่งกลาง) */}
+        <div className="bg-[#F8FAFC] py-32 border-t border-slate-100">
+          <Container size="lg">
+            <Stack gap="xs" align="center" className="mb-24 text-center">
+              <Title order={2} className="text-3xl md:text-5xl font-extrabold text-[#1E293B] tracking-tight">
+                Reliable Patient Infrastructure
+              </Title>
+              <Text className="text-[#64748B] font-medium max-w-2xl mx-auto text-lg leading-relaxed">
+                ยกระดับมาตรฐานการเข้าถึงการรักษาด้วยโครงสร้างพื้นฐานดิจิทัลที่แม่นยำ
+              </Text>
+            </Stack>
+            
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing={50}>
+              <FeatureCard icon={<Clock size={32} />} title="Time Precision" desc="Accurate wait estimates based on real workstation data." />
+              <FeatureCard icon={<ShieldCheck size={32} />} title="Verified Security" desc="Data is protected and verified with certified institutions." />
+              <FeatureCard icon={<Globe size={32} />} title="Universal Access" desc="Connect to any facility in our network from any device." />
+            </SimpleGrid>
+          </Container>
+        </div>
+      </main>
+      
+      <footer className="bg-[#0F172A] pt-24 pb-12 text-white">
+        <Container size="lg">
+          <div className="flex flex-col items-center text-center gap-10">
+            <div className="opacity-90">
+              <QueueCareLogo />
+            </div>
+            
+            <Text className="text-slate-400 text-sm max-w-md font-medium leading-relaxed">
+              Standardizing healthcare access through intelligent queue management and absolute transparency.
+            </Text>
 
-              {activeQueueId && (
-                <div className="relative group w-full sm:w-auto">
-                  <div className="absolute inset-0 bg-slate-200 translate-x-1 translate-y-1 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform duration-300" />
-                  <button 
-                    onClick={() => router.push(`/myqueue`)}
-                    className="relative w-full px-8 py-4 bg-white text-slate-900 text-lg font-black border-2 border-slate-900 uppercase group-hover:-translate-x-1 group-hover:-translate-y-1 transition-transform duration-300 cursor-pointer flex items-center justify-center gap-3 active:translate-x-0.5 active:translate-y-0.5"
-                  >
-                    <Ticket size={20} strokeWidth={3} className="text-[#10B981]" />
-                    คิวของฉัน
-                  </button>
-                </div>
-              )}
-
+            <div className="w-full border-t border-white/5 pt-12">
+              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">
+                © 2026 • Professional Patient Flow Systems
+              </Text>
             </div>
           </div>
-        </Box>
-      </main>
+        </Container>
+      </footer>
     </Box>
   );
 }
 
-function FeatureItem({ icon, text }) {
+function FeatureCard({ icon, title, desc }) {
   return (
-    <Group gap="sm">
-      <div className="text-[#10B981] flex items-center justify-center">
+    <Box className="text-center group px-6 flex flex-col items-center">
+      <ThemeIcon 
+        size={84} radius="32px" variant="light" color="blue"
+        className="mb-8 bg-white border border-slate-100 text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-500"
+      >
         {icon}
-      </div>
-      <Text className="text-slate-700 font-black uppercase text-[11px] lg:text-[12px] tracking-[0.1em]">{text}</Text>
-    </Group>
+      </ThemeIcon>
+      <Title order={4} className="text-xl font-bold text-[#1E293B] mb-4 tracking-tight">{title}</Title>
+      <Text className="text-[#64748B] leading-relaxed font-medium text-[15px] max-w-[280px]">{desc}</Text>
+    </Box>
   );
 }

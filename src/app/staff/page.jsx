@@ -1,199 +1,259 @@
-// src/app/join/page.jsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { 
-  Container, TextInput, SimpleGrid, Box, Text, Title, Group, Stack, Modal, AspectRatio 
+  Box, Text, Title, Group, Stack, TextInput, Modal, Select, 
+  SimpleGrid, Skeleton, ActionIcon, Container, Image, FileButton, Button, Paper, ThemeIcon, Badge, Flex
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Search, Clock, Ticket, X, Activity, ArrowRight, User, Phone } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
+import { 
+  Plus, Pencil, X, RefreshCw, Timer, ArrowRight, Users, ImageIcon, Activity, Clock, Upload, ShieldCheck, Search
+} from 'lucide-react';
 import { Navbar } from "@/components/Navbar";
-import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
+import Link from 'next/link';
 
-const FACILITIES = [
-  { id: 1, name: "กระทรวงสาธารณสุข", status: "OPEN", waitMin: 15, open: "08:00", close: "16:00", logo: "https://upload.wikimedia.org/wikipedia/commons/f/f1/Ministry_of_Public_Health_Thailand_Logo.png" },
-  { id: 2, name: "โรงพยาบาลปทุมธานี", status: "OPEN", waitMin: 45, open: "07:30", close: "20:00", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Red_Cross_icon.svg/1024px-Red_Cross_icon.svg.png" },
-  { id: 3, name: "คลินิกเฉพาะทาง", status: "CLOSED", waitMin: 300, open: "09:00", close: "17:00", logo: null }
+const EXPIRE_OPTIONS = [
+  { value: '30m', label: '30 MINUTES' }, { value: '1h', label: '1 HOUR' },
+  { value: '1d', label: '1 DAY' }, { value: 'never', label: 'NEVER' },
 ];
 
-export default function JoinQueuePage() {
-  const router = useRouter();
-  const [opened, { open, close }] = useDisclosure(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedHospital, setSelectedHospital] = useState(null);
-  const [step, setStep] = useState('form'); 
-  const [newQueueId] = useState("A026");
+export default function StaffManagementPage() {
+  const [loading, setLoading] = useState(true);
+  const [modalOpened, { open, close }] = useDisclosure(false);
+  const [editingFacility, setEditingFacility] = useState(null);
+
+  const [facilities, setFacilities] = useState([
+    { 
+      id: '1', name: "ALPHA TERMINAL", staffCount: 12, 
+      logo: "https://img.freepik.com/free-vector/abstract-logo-template_23-2148243456.jpg",
+      liveData: { queue: "24", queueTrend: "+15%", queueStatus: "bad", time: "12m", timeTrend: "-2m", timeStatus: "good" } 
+    },
+    { 
+      id: '2', name: "BRAVO MEDICAL", staffCount: 8, logo: "",
+      liveData: { queue: "15", queueTrend: "-5%", queueStatus: "good", time: "18m", timeTrend: "0m", timeStatus: "neutral" }
+    },
+  ]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (!localStorage.getItem('user_queue_id')) {
-        localStorage.setItem('user_queue_id', 'pending'); 
-      }
-      window.dispatchEvent(new Event('queueUpdated'));
-    }
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleHospitalSelect = (hospital) => {
-    if (hospital.status === 'OPEN') {
-      setSelectedHospital(hospital);
-      setStep('form');
-      open();
-    }
+  const getStatusColor = (type) => {
+    if (type === "good") return "teal";
+    if (type === "bad") return "red";
+    return "gray";
   };
 
-  const handleJoinQueue = (e) => {
-    e.preventDefault();
-    localStorage.setItem('user_queue_id', newQueueId);
-    window.dispatchEvent(new Event('queueUpdated'));
-    setStep('printing');
-  };
+  if (loading) return <Box p={50}><Stack gap="xl"><Skeleton height={60} radius="xl" /><SimpleGrid cols={3}><Skeleton height={400} radius={40} /><Skeleton height={400} radius={40} /><Skeleton height={400} radius={40} /></SimpleGrid></Stack></Box>;
 
   return (
-    <Box className="min-h-screen bg-[#EBEDF0] flex flex-col font-sans antialiased overflow-x-hidden relative">
-      <Box className="fixed inset-0 pointer-events-none opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]" />
-      
-      <Navbar user={null} />
+    <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
+      <Navbar user={{ name: "SYSTEM ADMIN", role: "Manager" }} />
 
-      <main className="flex-1 py-10 lg:py-16 w-full relative z-10">
-        <Container size="xl">
-          <Stack gap={50}>
-            
-            {/* Header Section */}
-            <Group justify="space-between" align="flex-end" wrap="wrap" className="w-full gap-8 border-b-4 border-slate-900 pb-10">
-              <Stack gap={0}>
-                <Title className="text-4xl lg:text-7xl font-black uppercase tracking-tighter text-slate-900 italic leading-[0.85]">
-                  SELECT <span className="text-[#10B981]">INSTITUTION</span>
-                </Title>
-                <Text className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px] mt-4">Workstation Database / {FACILITIES.length} Registered Units</Text>
-              </Stack>
+      <Container size="xl" className="flex-1 py-12 z-10">
+        <Stack gap={48}>
+          {/* HEADER SECTION: Administrative Style */}
+          <Group justify="space-between" align="flex-end">
+            <Stack gap={4}>
+              <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">Infrastructure</Text>
+              <Title className="text-4xl lg:text-6xl font-extrabold text-[#1E293B] tracking-tighter italic">
+                Facility <span className="text-blue-600">Hub.</span>
+              </Title>
+            </Stack>
 
-              <Box className="relative group w-full lg:w-[380px]">
-                <div className="absolute inset-0 bg-slate-900 translate-x-1.5 translate-y-1.5 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
-                <TextInput
-                  size="xl" radius={0} placeholder="SEARCH CLINIC..."
-                  value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                  leftSection={<Search size={22} strokeWidth={4} className="text-slate-900" />}
-                  styles={{ input: { backgroundColor: '#FFFFFF', border: '2px solid #0F172A', fontWeight: 900, height: '65px', fontSize: '14px', textTransform: 'uppercase' } }}
-                />
-              </Box>
-            </Group>
+            <Button 
+              onClick={() => {setEditingFacility(null); open();}} 
+              size="xl" radius="xl" color="blue" 
+              leftSection={<Plus size={22} />}
+              className="h-16 px-10 font-bold shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+            >
+              ADD NEW FACILITY
+            </Button>
+          </Group>
 
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing={25}>
-              {FACILITIES.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase())).map((hospital) => (
-                <FacilityCard key={hospital.id} hospital={hospital} onSelect={handleHospitalSelect} />
-              ))}
-            </SimpleGrid>
-          </Stack>
-        </Container>
-      </main>
+          {/* FACILITIES GRID: Premium Cards */}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={32}>
+            {facilities.map((f) => (
+              <Paper key={f.id} p={32} radius={40} withBorder className="bg-white border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/5 transition-all group relative overflow-hidden">
+                
+                <Group justify="space-between" align="flex-start" mb="xl">
+                  <Paper className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner">
+                    {f.logo ? <Image src={f.logo} alt="Logo" fit="contain" /> : <ImageIcon size={28} className="text-slate-200" />}
+                  </Paper>
+                  <ActionIcon 
+                    variant="light" color="blue" size="lg" radius="xl" 
+                    onClick={() => {setEditingFacility(f); open();}}
+                    className="group-hover:scale-110 transition-transform"
+                  >
+                    <Pencil size={18} />
+                  </ActionIcon>
+                </Group>
 
-      <Modal opened={opened} onClose={close} centered radius={0} size={step === 'form' ? "lg" : "xl"} withCloseButton={false} padding={0}>
-        <Box className="border-[4px] border-slate-900 bg-white relative">
-          <AnimatePresence mode="wait">
-            {step === 'form' ? (
-              <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="p-10 lg:p-14">
-                <Stack gap={40}>
-                  <Group gap="xl" className="border-b-2 border-slate-100 pb-8 relative">
-                    <button onClick={close} className="absolute -top-4 -right-4 p-2 text-slate-300 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"><X size={32} strokeWidth={4} /></button>
-                    <div className="w-20 h-20 border-2 border-slate-900 bg-slate-50 p-4 flex items-center justify-center">
-                       {selectedHospital?.logo ? <img src={selectedHospital.logo} alt="Logo" className="w-full h-full object-contain" /> : <Activity className="text-slate-200" size={30} />}
-                    </div>
-                    <Stack gap={0}>
-                      <Title order={2} className="text-2xl lg:text-3xl font-black text-slate-900 uppercase tracking-tighter italic">{selectedHospital?.name}</Title>
-                      <Text className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em]">Session Registration</Text>
-                    </Stack>
+                <Stack gap={4} mb={32}>
+                  <Title order={3} className="text-2xl font-extrabold text-[#1E293B] tracking-tight uppercase italic">{f.name}</Title>
+                  <Badge variant="dot" color="blue" size="sm">Active Operational Unit</Badge>
+                </Stack>
+
+                {/* PERFORMANCE ANALYTICS PANEL */}
+                <SimpleGrid cols={2} spacing="md" mb={40}>
+                  <Paper p="md" radius="24px" bg="slate-50" className="border border-slate-100">
+                    <Group gap={6} mb={4}>
+                      <Activity size={12} className="text-blue-600" />
+                      <Text className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Queue</Text>
+                    </Group>
+                    <Group align="baseline" gap={6}>
+                      <Text className="text-2xl font-black text-[#1E293B] italic">{f.liveData.queue}</Text>
+                      <Text className="text-[10px] font-bold" style={{ color: getStatusColor(f.liveData.queueStatus) }}>{f.liveData.queueTrend}</Text>
+                    </Group>
+                  </Paper>
+                  <Paper p="md" radius="24px" bg="slate-50" className="border border-slate-100">
+                    <Group gap={6} mb={4}>
+                      <Clock size={12} className="text-teal-500" />
+                      <Text className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Avg Time</Text>
+                    </Group>
+                    <Group align="baseline" gap={6}>
+                      <Text className="text-2xl font-black text-[#1E293B] italic">{f.liveData.time}</Text>
+                      <Text className="text-[10px] font-bold" style={{ color: getStatusColor(f.liveData.timeStatus) }}>{f.liveData.timeTrend}</Text>
+                    </Group>
+                  </Paper>
+                </SimpleGrid>
+
+                {/* FOOTER ACTION */}
+                <Group justify="space-between" className="pt-6 border-t border-slate-50">
+                  <Group gap="xs">
+                    <ThemeIcon variant="light" color="gray" radius="md" size="sm"><Users size={14} /></ThemeIcon>
+                    <Text className="text-xs font-bold text-slate-500">{f.staffCount} STAFF MEMBERS</Text>
                   </Group>
+                  <Button 
+                    component={Link} href={`/staff/${f.id}`}
+                    variant="filled" color="blue" radius="xl" 
+                    className="h-12 px-6 font-bold shadow-lg shadow-blue-600/10 active:scale-95 transition-all"
+                    rightSection={<ArrowRight size={18} />}
+                  >
+                    ENTER HUB
+                  </Button>
+                </Group>
+              </Paper>
+            ))}
+          </SimpleGrid>
+        </Stack>
+      </Container>
 
-                  <form onSubmit={handleJoinQueue} className="space-y-8">
-                    <TextInput required label="PATIENT NAME" placeholder="ชื่อ-นามสกุล" size="xl" radius={0} classNames={{ input: "border-2 border-slate-900 font-black h-16 uppercase", label: "font-black text-slate-400 mb-2 uppercase text-[10px] tracking-widest" }} leftSection={<User size={18} className="text-slate-400" />} />
-                    <TextInput required label="CONTACT NUMBER" placeholder="08X-XXX-XXXX" size="xl" radius={0} classNames={{ input: "border-2 border-slate-900 font-black h-16 uppercase", label: "font-black text-slate-400 mb-2 uppercase text-[10px] tracking-widest" }} leftSection={<Phone size={18} className="text-slate-400" />} />
-                    <button type="submit" className="w-full py-6 bg-[#10B981] text-white border-2 border-slate-900 text-2xl font-black uppercase tracking-widest shadow-[8px_8px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all cursor-pointer">Register Queue</button>
-                  </form>
-                </Stack>
-              </motion.div>
-            ) : (
-              /* Printing Step */
-              <motion.div key="printing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-16 lg:py-24 bg-slate-50">
-                <Stack align="center" gap={0}>
-                  <DispenseMachine />
-                  <div className="relative h-[380px] flex justify-center overflow-hidden">
-                    <motion.div initial={{ y: -300 }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 100, damping: 25, delay: 0.5 }}>
-                      <PaperTicketContent queueNumber={newQueueId} hospitalName={selectedHospital?.name} />
-                    </motion.div>
-                  </div>
-                  <button onClick={() => { close(); router.push('/myqueue'); }} className="mt-12 px-12 py-5 bg-white border-4 border-slate-900 text-slate-900 text-2xl font-black uppercase shadow-[10px_10px_0px_#10B981] active:translate-x-2 active:translate-y-2 active:shadow-none transition-all cursor-pointer flex items-center gap-4">
-                    <Ticket size={28} strokeWidth={4} className="text-[#10B981]" /> View Ticket
-                  </button>
-                </Stack>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Box>
-      </Modal>
+      {/* MODAL: Master Setup */}
+      <FacilityManagementModal opened={modalOpened} onClose={close} facility={editingFacility} />
     </Box>
   );
 }
 
-// ✅ Updated Facility Card with Readable Status & Operational Hours
-function FacilityCard({ hospital, onSelect }) {
-  const statusColor = hospital.status === "OPEN" ? "#10B981" : "#EF4444";
+function FacilityManagementModal({ opened, onClose, facility }) {
+  const [name, setName] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [expireDuration, setExpireDuration] = useState('1d'); 
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (facility) {
+      setName(facility.name); setLogoPreview(facility.logo || ''); setInviteCode('ST-9922-X');
+    } else {
+      setName(''); setLogoPreview(''); setInviteCode('');
+    }
+  }, [facility, opened]);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) timer = setInterval(() => setCooldown(prev => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleFileUpload = (file) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setLogoPreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGenerateCode = () => {
+    if (cooldown > 0) return;
+    setInviteCode(`ST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+    setCooldown(60); 
+  };
 
   return (
-    <motion.div 
-      onClick={() => onSelect(hospital)} 
-      className="relative group cursor-pointer w-full"
-    >
-      {/* Opposite Shadow */}
-      <div 
-        className={`absolute inset-0 transition-all duration-300 
-          ${hospital.status === 'OPEN' ? 'bg-[#10B981] translate-x-2.5 translate-y-2.5 group-hover:translate-x-4 group-hover:translate-y-4' : 'bg-slate-200 translate-x-1.5 translate-y-1.5'}`} 
-      />
-      
-      <Box 
-        className={`relative bg-white border-2 p-5 flex flex-col gap-6 transition-all duration-300
-          ${hospital.status === 'OPEN' ? 'border-slate-900 group-hover:-translate-x-1 group-hover:-translate-y-1' : 'border-slate-200 grayscale opacity-80 cursor-not-allowed'}`}
-        style={{ borderRadius: '0px' }}
-      >
-        <Group justify="space-between" align="center">
-          {/* ✅ FIXED: High-contrast status label */}
-          <Box className="px-3 py-1 border-2 border-slate-900 shadow-[2px_2px_0px_#000]" style={{ backgroundColor: statusColor }}>
-            <Text className="text-[10px] font-black text-white uppercase tracking-widest">{hospital.status}</Text>
-          </Box>
-          <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${hospital.status === 'OPEN' ? 'bg-[#10B981] animate-pulse' : 'bg-slate-400'}`} />
-        </Group>
+    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size="640px">
+      <Box className="p-10 lg:p-14 bg-white relative">
+        {/* FIXED X BUTTON: Absolute Top-Right */}
+        <ActionIcon 
+          variant="light" color="gray" radius="xl" size="xl" onClick={onClose} 
+          style={{ position: 'absolute', top: '28px', right: '28px', zIndex: 100 }}
+          className="hover:bg-red-50 hover:text-red-500 transition-colors"
+        >
+          <X size={24} />
+        </ActionIcon>
 
-        <Box className="w-full aspect-square border-2 border-slate-50 bg-slate-50/50 p-6 flex items-center justify-center overflow-hidden">
-          {hospital.logo ? (
-            <img src={hospital.logo} alt="Logo" className="w-full h-full object-contain grayscale group-hover:grayscale-0 transition-all" />
-          ) : (
-            <Activity className="text-slate-200" size={40} />
-          )}
-        </Box>
+        <Stack gap={40}>
+          <Stack gap={4}>
+            <Text className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Administrative Console</Text>
+            <Title className="text-3xl font-extrabold text-[#1E293B] tracking-tight">{facility ? "Edit Facility" : "New Facility"}</Title>
+          </Stack>
+          
+          <Stack gap="xl">
+            <TextInput 
+              label="FACILITY NAME (REQUIRED)" placeholder="e.g. ALPHA MEDICAL CENTER" 
+              value={name} onChange={(e) => setName(e.target.value)} required 
+              size="lg" radius="md" 
+              classNames={{ input: "font-bold h-14 border-slate-200 focus:border-blue-500", label: "font-bold text-[11px] mb-2 text-slate-500" }} 
+            />
+            
+            {/* Branding Section */}
+            <Paper p={24} radius="24px" withBorder bg="slate-50" className="border-slate-100">
+              <Group gap="xl" align="flex-start">
+                <Box className="w-24 h-24 rounded-3xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm relative group">
+                  {logoPreview ? <Image src={logoPreview} alt="Logo" fit="contain" /> : <ImageIcon size={32} className="text-slate-200" />}
+                  <FileButton onChange={handleFileUpload} accept="image/*">
+                    {(props) => (
+                      <ActionIcon {...props} variant="filled" color="blue" radius="xl" className="absolute bottom-1 right-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Upload size={14} />
+                      </ActionIcon>
+                    )}
+                  </FileButton>
+                </Box>
+                <Stack gap="sm" className="flex-1">
+                  <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Logo Configuration</Text>
+                  <TextInput placeholder="Image URL..." value={typeof logoPreview === 'string' && logoPreview.startsWith('http') ? logoPreview : ''} onChange={(e) => setLogoPreview(e.target.value)} radius="md" classNames={{ input: "h-11 text-xs" }} />
+                  <FileButton onChange={handleFileUpload} accept="image/*">
+                    {(props) => <Button {...props} variant="outline" color="blue" radius="md" size="xs" leftSection={<Upload size={14} />}>Upload Local File</Button>}
+                  </FileButton>
+                </Stack>
+              </Group>
+            </Paper>
 
-        <Title order={4} className="text-lg font-black text-slate-900 uppercase tracking-tighter italic line-clamp-1">{hospital.name}</Title>
-
-        {/* ✅ ADDED: Operational Hours */}
-        <Box className="py-3 border-y-2 border-slate-100 flex justify-between items-center px-1">
-          <Group gap={6}>
-            <Clock size={14} className="text-slate-400" strokeWidth={3} />
-            <Text className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Hours</Text>
-          </Group>
-          <Text className="text-xs font-black text-slate-900 tracking-widest">{hospital.open} - {hospital.close}</Text>
-        </Box>
-
-        <Box className="flex justify-between items-center px-1">
-          <Group gap={6}>
-             <Activity size={14} className="text-[#10B981]" strokeWidth={3} />
-             <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. Wait</Text>
-          </Group>
-          <Text className="text-xl font-black text-slate-900 tracking-tighter">
-            {hospital.status === 'OPEN' ? `${hospital.waitMin}m` : '---'}
-          </Text>
-        </Box>
+            {/* SYMMETRICAL INVITATION BOX */}
+            <Paper p={30} radius={32} withBorder className="bg-blue-50/30 border-blue-100">
+              <Stack gap="xl">
+                <Group gap="md"><ShieldCheck size={20} className="text-blue-600" /><Text className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Invitation Protocol</Text></Group>
+                <Group align="flex-end">
+                  <TextInput label="STAFF INVITE CODE" value={inviteCode} readOnly className="flex-1" radius="md" size="lg" classNames={{ input: "font-black h-14 bg-white text-blue-600 border-blue-200" }} />
+                  <ActionIcon onClick={handleGenerateCode} disabled={cooldown > 0} variant="filled" color="blue" size="56px" radius="md" className="shadow-lg shadow-blue-600/20">
+                    {cooldown > 0 ? <Text className="font-bold text-xs">{cooldown}s</Text> : <RefreshCw size={24} />}
+                  </ActionIcon>
+                </Group>
+                <Select label="CODE VALIDITY" data={EXPIRE_OPTIONS} value={expireDuration} onChange={setExpireDuration} radius="md" size="lg" leftSection={<Timer size={18} />} classNames={{ input: "font-bold h-14 border-slate-200" }} />
+              </Stack>
+            </Paper>
+          </Stack>
+          
+          <Button 
+            onClick={onClose} disabled={!name.trim()} fullWidth size="xl" radius="xl" color="blue" 
+            className="h-20 text-lg font-bold shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+            rightSection={<ArrowRight size={28} />}
+          >
+            INITIALIZE FACILITY SETUP
+          </Button>
+        </Stack>
       </Box>
-    </motion.div>
+    </Modal>
   );
 }

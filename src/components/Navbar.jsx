@@ -1,175 +1,166 @@
 // src/components/Navbar.jsx
 "use client";
 
-import React, { useState, useEffect } from 'react'; // ✅ เพิ่ม useEffect
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; 
-import { Activity, Ticket, Phone, ArrowLeft, ArrowRight, RotateCw } from 'lucide-react'; 
-import { Group, Stack, Text, Box, Modal, TextInput, Button, Title, PinInput } from '@mantine/core';
+import { useRouter } from 'next/navigation'; 
+import { 
+  Activity, Ticket, Phone, ArrowRight, RotateCw, UserCircle2, 
+  LogOut, ShieldCheck, X, Camera, User, Check, Upload 
+} from 'lucide-react'; 
+import { 
+  Group, Stack, Text, Box, Modal, TextInput, Button, Title, 
+  PinInput, ActionIcon, Flex, Badge, Avatar, UnstyledButton, FileButton, Center
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks'; 
 import { motion, AnimatePresence } from 'framer-motion';
 
+// โลโก้มาตรฐาน QueueCare
+export const QueueCareLogo = () => (
+  <Group gap="xs" wrap="nowrap" style={{ pointerEvents: 'none' }}>
+    <Box 
+      style={{ 
+        width: 'clamp(32px, 5vw, 40px)', height: 'clamp(32px, 5vw, 40px)', 
+        backgroundColor: '#2563EB', borderRadius: '50%', 
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+      }}
+    >
+      <Activity size={20} color="white" strokeWidth={2.5} />
+    </Box>
+    <Text 
+      span className="font-black"
+      style={{ 
+        fontFamily: '"Plus Jakarta Sans", sans-serif', fontSize: 'clamp(18px, 4vw, 22px)', 
+        letterSpacing: '-0.02em', color: '#1E293B', textTransform: 'uppercase', lineHeight: 1
+      }}
+    >
+      QUEUECARE
+    </Text>
+  </Group>
+);
+
 export function Navbar({ user }) {
-  const pathname = usePathname();
   const router = useRouter();
-  const [opened, { open, close }] = useDisclosure(false); 
-  const [loginStep, setLoginStep] = useState('phone'); 
+  const [loginOpened, { open: openLogin, close: closeLogin }] = useDisclosure(false);
+  const [profileOpened, { open: openProfile, close: closeProfile }] = useDisclosure(false);
+  
+  // 1. เพิ่ม Local State เพื่อรองรับการอัปเดตข้อมูลแบบ Real-time
+  const [currentUser, setCurrentUser] = useState(user);
+  const [loginStep, setLoginStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [otpValue, setOtpValue] = useState('');
-  
-  // ✅ ระบบ Cooldown State
   const [timer, setTimer] = useState(0);
+  const [activeQueueId, setActiveQueueId] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
-  // ✅ ฟังก์ชันนับเวลาถอยหลัง
+  // Sync ข้อมูลเมื่อ Prop user เปลี่ยนแปลง
+  useEffect(() => {
+    if (user) setCurrentUser(user);
+  }, [user]);
+
+  useEffect(() => {
+    setMounted(true);
+    setActiveQueueId(localStorage.getItem('user_queue_id'));
+  }, []);
+
   useEffect(() => {
     let interval;
-    if (timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
+    if (timer > 0) interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [timer]);
 
   const handleSendOTP = () => {
-    if (phone.length >= 10) {
-      setLoginStep('otp');
-      setTimer(60); // ✅ เริ่มนับถอยหลัง 1 นาที (60 วินาที)
-    }
-  };
-
-  const handleResendOTP = () => {
-    if (timer === 0) {
-      console.log("Resending OTP to:", phone);
-      setTimer(60); // ✅ รีเซ็ตตัวนับใหม่
-      setOtpValue(''); // ล้างค่าเดิม
-    }
+    if (phone.length >= 10) { setLoginStep('otp'); setTimer(60); }
   };
 
   const handleLogin = () => {
-    close();
+    localStorage.setItem('user_queue_id', 'Q-123');
+    setActiveQueueId('Q-123');
+    closeLogin();
     setLoginStep('phone');
     setOtpValue('');
-    setTimer(0);
     router.push('/myqueue'); 
   };
 
-  const isIndex = pathname === '/';
-  const isStaff = !!user;
+  const handleLogout = () => {
+    localStorage.removeItem('user_queue_id');
+    setActiveQueueId(null);
+    router.push('/');
+  };
+
+  // 2. ฟังก์ชันอัปเดตข้อมูลผู้ใช้ใน Navbar
+  const handleUpdateProfile = (newData) => {
+    setCurrentUser(prev => ({ ...prev, ...newData }));
+    closeProfile();
+  };
+
+  if (!mounted) return <nav className="h-20 bg-white border-b border-slate-100" />;
 
   return (
     <>
-      <nav className="h-20 px-8 lg:px-20 flex items-center justify-between bg-white border-b-2 border-slate-900 sticky top-0 z-50">
-        <Link href="/" className="no-underline">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-900 flex items-center justify-center shadow-[4px_4px_0px_#10B981]">
-              <Activity className="text-[#10B981]" size={22} strokeWidth={3} />
-            </div>
-            <span className="text-2xl font-black tracking-tighter text-slate-900 uppercase">QueueCare</span>
-          </div>
+      <nav className="h-16 md:h-20 px-4 md:px-10 lg:px-20 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
+        <Link href="/" className="no-underline transition-opacity hover:opacity-80">
+          <QueueCareLogo />
         </Link>
 
-        <div className="flex items-center gap-4">
-          {!isStaff && (
-            <>
-              {!isIndex && (
-                <Link href="/myqueue" className="no-underline">
-                  <button className="px-6 py-2.5 bg-white border-2 border-slate-900 text-slate-900 font-black flex items-center gap-2 shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all cursor-pointer">
-                    <Ticket size={18} strokeWidth={3} className="text-[#10B981]" />
-                    <span className="uppercase tracking-tight text-xs">คิวของฉัน</span>
-                  </button>
-                </Link>
-              )}
-              <button onClick={open} className="px-8 py-2.5 bg-[#0096FF] border-2 border-slate-900 text-white font-black shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all uppercase tracking-widest text-xs cursor-pointer">
-                Login
-              </button>
-            </>
+        <Group gap={{ base: 'xs', md: 'md' }}>
+          {currentUser ? ( // ใช้ currentUser แทน user
+            <Group gap="xs">
+              <UnstyledButton onClick={openProfile} className="hover:opacity-80 transition-opacity">
+                <Group gap="sm" className="bg-slate-50 px-2 md:px-4 py-1.5 rounded-full border border-slate-100">
+                  <Avatar src={currentUser.image} alt={currentUser.name} color="blue" radius="xl" size="sm">
+                    {!currentUser.image && <UserCircle2 size={20} />}
+                  </Avatar>
+                  <Stack gap={0} visibleFrom="xs">
+                    <Text className="text-[10px] md:text-[11px] font-bold text-slate-900 leading-tight uppercase">{currentUser.name}</Text>
+                    <Text className="text-[8px] md:text-[9px] font-black text-blue-600 uppercase tracking-widest">{currentUser.role}</Text>
+                  </Stack>
+                </Group>
+              </UnstyledButton>
+              <ActionIcon variant="subtle" color="gray" radius="xl" size="lg" onClick={handleLogout} className="hover:bg-red-50 hover:text-red-500">
+                <LogOut size={18} />
+              </ActionIcon>
+            </Group>
+          ) : activeQueueId ? (
+            <Group gap="xs">
+              <Button variant="filled" color="blue" radius="xl" size="sm" onClick={() => router.push('/myqueue')} className="px-4 md:px-6 font-bold shadow-lg" leftSection={<Ticket size={16} />}>คิวของฉัน</Button>
+              <ActionIcon variant="subtle" color="gray" radius="xl" size="lg" onClick={handleLogout}><LogOut size={18} /></ActionIcon>
+            </Group>
+          ) : (
+            <Button onClick={openLogin} radius="xl" size="sm" color="blue" className="px-6 md:px-8 font-bold shadow-xl active:scale-95 transition-all">Login</Button>
           )}
-        </div>
+        </Group>
       </nav>
 
-      {/* ✅ Modal 0px Radius ตามสไตล์ Industrial */}
-      <Modal opened={opened} onClose={() => { close(); setLoginStep('phone'); }} centered radius={0} padding={0} withCloseButton={false} size="440px">
-        <Box className="border-[4px] border-slate-900 bg-white p-10">
+      {/* ส่ง handleUpdateProfile เข้าไปใน Modal */}
+      <StaffProfileModal 
+        opened={profileOpened} 
+        onClose={closeProfile} 
+        user={currentUser} 
+        onUpdate={handleUpdateProfile} 
+      />
+
+      {/* Login Modal (เหมือนเดิม) */}
+      <Modal opened={loginOpened} onClose={() => { closeLogin(); setLoginStep('phone'); }} centered radius="40px" padding={0} withCloseButton={false} size={{ base: '95%', sm: '440px' }} overlayProps={{ backgroundOpacity: 0.5, blur: 6 }}>
+        <Box className="p-8 md:p-12 bg-white relative">
+          <ActionIcon variant="light" color="gray" radius="xl" size="lg" onClick={closeLogin} style={{ position: 'absolute', top: '24px', right: '24px' }}><X size={20} /></ActionIcon>
           <AnimatePresence mode="wait">
             {loginStep === 'phone' ? (
-              <motion.div key="phone" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <motion.div key="phone" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                 <Stack gap="xl">
-                  <Box>
-                    <Title order={2} className="text-3xl font-black uppercase tracking-tighter text-slate-900">Welcome Back</Title>
-                    <Text className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Identification Required</Text>
-                  </Box>
-                  
-                  <TextInput 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.currentTarget.value)} 
-                    placeholder="08X-XXX-XXXX" 
-                    label="PHONE NUMBER" 
-                    size="lg" 
-                    radius={0}
-                    leftSection={<Phone size={18} />} 
-                    classNames={{ input: "font-black border-2 border-slate-900 focus:border-[#10B981]", label: "font-black text-[10px] tracking-widest mb-1" }} 
-                  />
-                  
-                  <Stack gap="sm">
-                    <Button fullWidth size="xl" radius={0} color="dark.9" onClick={handleSendOTP} className="h-16 bg-slate-900 border-none shadow-[6px_6px_0px_#10B981] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
-                      <Group gap="xs">
-                        <Text className="font-black uppercase tracking-widest">Send OTP</Text>
-                        <ArrowRight size={20} strokeWidth={3} />
-                      </Group>
-                    </Button>
-                    <Link href="/staff" className="no-underline w-full" onClick={close}>
-                      <button className="w-full bg-transparent border-none text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] hover:text-slate-900 transition-colors cursor-pointer py-2">
-                        Login as Staff
-                      </button>
-                    </Link>
-                  </Stack>
+                  <Stack gap={4}><Text className="text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">Identification</Text><Title order={2} className="text-2xl font-extrabold text-[#1E293B]">เข้าสู่ระบบ</Title></Stack>
+                  <TextInput value={phone} onChange={(e) => setPhone(e.currentTarget.value)} placeholder="08X-XXX-XXXX" label="PHONE NUMBER" size="lg" radius="md" leftSection={<Phone size={18} className="text-blue-600" />} />
+                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleSendOTP} className="h-16 font-bold shadow-xl active:scale-95">Request OTP Code</Button>
+                  <Link href="/staff" className="no-underline" onClick={closeLogin}><Flex justify="center" align="center" gap={6} className="py-2 opacity-50"><ShieldCheck size={14} /><Text className="text-[10px] font-bold uppercase">Staff Portal</Text></Flex></Link>
                 </Stack>
               </motion.div>
             ) : (
-              <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <motion.div key="otp" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Stack gap="xl" align="center">
-                  <Box className="w-full">
-                    <Title order={2} className="text-3xl font-black uppercase tracking-tighter text-slate-900">Verify OTP</Title>
-                    <Text className="text-lg font-black text-[#10B981] mt-1">{phone}</Text>
-                  </Box>
-
-                  <Box className="py-2">
-                    <PinInput 
-                      length={6} 
-                      size="xl" 
-                      oneTimeCode 
-                      value={otpValue}
-                      onChange={setOtpValue}
-                      type="number"
-                      classNames={{ input: "font-black text-3xl h-16 w-12 !rounded-none border-2 border-slate-900 focus:border-[#10B981]" }}
-                    />
-                  </Box>
-
-                  <Stack gap="md" className="w-full">
-                    <Button fullWidth size="xl" radius={0} onClick={handleLogin} disabled={otpValue.length < 6} className="h-16 bg-[#10B981] border-none shadow-[6px_6px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
-                      <Text className="font-black uppercase tracking-widest text-white">Confirm Login</Text>
-                    </Button>
-
-                    <Group justify="space-between" className="w-full">
-                      <button onClick={() => setLoginStep('phone')} className="bg-transparent border-none cursor-pointer flex items-center gap-2 text-slate-400 hover:text-slate-900 transition-all">
-                        <ArrowLeft size={14} strokeWidth={3} />
-                        <Text className="font-black uppercase text-[9px] tracking-widest underline">Edit Phone</Text>
-                      </button>
-
-                      {/* ✅ ส่วน Resend OTP Cooldown */}
-                      {timer > 0 ? (
-                        <Group gap={6} className="text-slate-400">
-                          <RotateCw size={12} className="animate-spin" />
-                          <Text className="font-black text-[9px] tracking-widest uppercase">Resend in {timer}s</Text>
-                        </Group>
-                      ) : (
-                        <button onClick={handleResendOTP} className="bg-transparent border-none cursor-pointer text-[#0096FF] hover:text-blue-700 font-black uppercase text-[9px] tracking-widest underline transition-all">
-                          Resend New OTP
-                        </button>
-                      )}
-                    </Group>
-                  </Stack>
+                  <Stack gap={4} align="center"><Title order={2} className="text-2xl font-extrabold text-[#1E293B]">ยืนยันรหัส OTP</Title><Badge variant="light" color="blue" size="lg">{phone}</Badge></Stack>
+                  <Box className="py-4"><PinInput length={6} size="xl" radius="md" oneTimeCode value={otpValue} onChange={setOtpValue} type="number" classNames={{ input: "font-bold text-2xl h-14 w-11 md:w-14" }} /></Box>
+                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleLogin} disabled={otpValue.length < 6} className="h-16 font-bold shadow-xl active:scale-95">Confirm and Login</Button>
                 </Stack>
               </motion.div>
             )}
@@ -177,5 +168,61 @@ export function Navbar({ user }) {
         </Box>
       </Modal>
     </>
+  );
+}
+
+// STAFF PROFILE MODAL: เพิ่มระบบส่งค่ากลับ
+function StaffProfileModal({ opened, onClose, user, onUpdate }) {
+  const [name, setName] = useState(user?.name || '');
+  const [tel, setTel] = useState(user?.tel || '');
+  const [imagePreview, setImagePreview] = useState(user?.image || '');
+
+  // เมื่อ Modal เปิด ให้รีเซ็ตค่าตาม user ปัจจุบัน
+  useEffect(() => {
+    if (opened) {
+      setName(user?.name || '');
+      setTel(user?.tel || '');
+      setImagePreview(user?.image || '');
+    }
+  }, [opened, user]);
+
+  const handleFileUpload = (file) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size={{ base: '95%', sm: '500px' }} overlayProps={{ backgroundOpacity: 0.5, blur: 6 }}>
+      <Box className="p-10 md:p-14 bg-white relative">
+        <ActionIcon variant="light" color="gray" radius="xl" size="xl" onClick={onClose} style={{ position: 'absolute', top: '28px', right: '28px', zIndex: 100 }} className="hover:bg-red-50 hover:text-red-500"><X size={24} /></ActionIcon>
+        <Stack gap={40}>
+          <Stack gap={4}><Text className="text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">Profile Settings</Text><Title className="text-3xl font-extrabold text-[#1E293B]">จัดการข้อมูลส่วนตัว</Title></Stack>
+          <Center>
+            <Box className="relative">
+              <Avatar src={imagePreview} size={120} radius="100%" color="blue" className="border-4 border-slate-50 shadow-xl">{!imagePreview && <User size={60} className="text-slate-300" />}</Avatar>
+              <FileButton onChange={handleFileUpload} accept="image/*">
+                {(props) => <ActionIcon {...props} variant="filled" color="blue" size="40px" radius="xl" className="absolute bottom-0 right-0 shadow-lg border-4 border-white active:scale-90"><Camera size={18} /></ActionIcon>}
+              </FileButton>
+            </Box>
+          </Center>
+          <Stack gap="xl">
+            <TextInput label="DISPLAY NAME" value={name} onChange={(e) => setName(e.target.value)} radius="md" size="lg" leftSection={<User size={18} className="text-blue-600" />} classNames={{ input: "font-bold h-14 border-slate-200" }} />
+            <TextInput label="PHONE NUMBER" value={tel} onChange={(e) => setTel(e.target.value)} radius="md" size="lg" leftSection={<Phone size={18} className="text-blue-600" />} classNames={{ input: "font-bold h-14 border-slate-200" }} />
+          </Stack>
+          {/* เมื่อกดปุ่ม จะส่งข้อมูลใหม่กลับไปยัง Navbar */}
+          <Button 
+            fullWidth size="xl" radius="xl" color="blue" 
+            className="h-20 text-lg font-bold shadow-xl active:scale-95" 
+            onClick={() => onUpdate({ name, tel, image: imagePreview })}
+            leftSection={<Check size={22} />}
+          >
+            Update Profile Information
+          </Button>
+        </Stack>
+      </Box>
+    </Modal>
   );
 }

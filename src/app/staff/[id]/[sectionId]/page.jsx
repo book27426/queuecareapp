@@ -1,120 +1,265 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
-import { Box, Text, Title, Paper, Group, Stack, TextInput, Textarea } from '@mantine/core';
-import { CheckCircle, UserX, User, Phone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { 
+  Box, Text, Title, Group, Stack, TextInput, Textarea, ScrollArea, Modal, Select, 
+  Paper, ThemeIcon, Button, ActionIcon, Badge, Flex, Grid, Tabs, Center
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { 
+  CheckCircle, UserX, User, Phone, Layers, Clock, Send, X, ArrowRight, ArrowLeft,
+  Search, Info, Activity 
+} from 'lucide-react';
 import { Navbar } from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 
+const SECTION_OPTIONS = [
+  { value: 'S1', label: 'DENTAL / ทำฟัน' },
+  { value: 'S2', label: 'GENERAL / ผู้ป่วยทั่วไป' },
+  { value: 'S3', label: 'ER / ฉุกเฉิน' },
+];
+
 export default function SectionDetailPage() {
   const { id, sectionId } = useParams();
-  const [currentNumber, setCurrentNumber] = useState(24);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [patient, setPatient] = useState({ name: "สมชาย ใจดี", tel: "081-123-4567" });
+  const router = useRouter();
+  const [opened, { open, close }] = useDisclosure(false);
+  const [mounted, setMounted] = useState(false);
 
-  const sectionLabel = sectionId === "S1" ? "ทำฟัน" : "ผู้ป่วยทั่วไป";
+  // ระบบ Logic เดิม
+  const [currentNumber, setCurrentNumber] = useState(26);
+  const [isAnimating, setIsAnimating] = useState(false); // ใช้สำหรับ Cooldown และ Loading
+  const [hasActivePatient, setHasActivePatient] = useState(true);
+  
+  const [waitlist, setWaitlist] = useState([
+    { id: 'A027', name: 'สมชาย รักดี', tel: '081-123-4567' },
+    { id: 'A028', name: 'นภาพร สดใส', tel: '089-876-5432' },
+    { id: 'B015', name: 'วิชัย มั่นคง', tel: '085-555-0199' },
+  ]);
+
+  const [patient, setPatient] = useState({ name: "สมชาย ใจดี", tel: "081-123-4567", notes: "" });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const sectionLabel = sectionId === "S1" ? "DENTAL UNIT" : "GENERAL CLINIC";
   const displayId = `A${String(currentNumber).padStart(3, '0')}`;
 
-  const handleFinishCase = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    // แอนิเมชันฉีกร่วงหล่นลงพื้น
+  // แก้ไขระบบเรียกคิว: เพิ่มการล็อกปุ่ม (Cooldown) เพื่อป้องกันการกดรัว
+  const triggerNextQueue = (type) => {
+    if (isAnimating || !hasActivePatient) return;
+    
+    setIsAnimating(true); // 🔒 เริ่ม Cooldown ทันทีที่กด
+    console.log(`Action: ${type}`, { queueId: displayId, patient });
+
+    // จำลองระยะเวลาแอนิเมชันและการจัดการข้อมูล
     setTimeout(() => {
-      setCurrentNumber(prev => prev + 1);
-      setIsAnimating(false);
+      if (waitlist.length > 0) {
+        const next = waitlist[0];
+        setPatient({ name: next.name, tel: next.tel, notes: "" });
+        setWaitlist(prev => prev.slice(1));
+        setCurrentNumber(prev => prev + 1);
+      } else {
+        setHasActivePatient(false);
+      }
+      
+      // 🔓 ปลดล็อกปุ่มหลังจากแอนิเมชันและข้อมูลอัปเดตเสร็จสิ้น (รวมเวลา Ticket ลงมา)
+      setTimeout(() => setIsAnimating(false), 1000); 
+      if (opened) close();
     }, 850);
   };
 
-  return (
-    <div className="min-h-screen bg-[#F0F2F5] flex flex-col font-sans antialiased overflow-hidden">
-      <Navbar user={{ name: "DR. A" }} />
+  if (!mounted) return null;
 
-      <main className="flex-1 p-6 lg:p-12 max-w-[1800px] mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr_320px] gap-10 items-stretch">
-          
-          {/* 1. LEFT COLUMN: PATIENT DATA */}
-          <Paper radius={40} p={40} withBorder className="bg-white shadow-sm border-gray-100 h-fit">
+  // 1. ส่วนควบคุมหลัก (2/3)
+  const WorkstationUI = (
+    <Stack gap={30}>
+      <Group justify="space-between" align="center">
+        <Button 
+          variant="subtle" color="gray" radius="xl" leftSection={<ArrowLeft size={18} />} 
+          onClick={() => router.back()} className="font-bold text-slate-400 hover:text-slate-900"
+        >
+          กลับหน้าหลัก
+        </Button>
+        <Badge size="xl" radius="md" color="blue" variant="light" className="h-10 px-6 font-bold uppercase italic">
+          {sectionLabel}
+        </Badge>
+      </Group>
+
+      <Grid gutter={30} align="stretch">
+        <Grid.Col span={{ base: 12, md: 4.5 }}>
+          <Paper p={32} radius={40} withBorder className="bg-white border-slate-100 shadow-sm h-full">
+            <Group gap="xs" mb="xl" className="border-b border-slate-50 pb-4">
+              <ThemeIcon variant="light" color="blue" radius="md"><Info size={18} /></ThemeIcon>
+              <Title order={3} className="text-xl font-extrabold text-[#1E293B]">Patient Session</Title>
+            </Group>
             <Stack gap="xl">
-              <Title order={2} className="text-2xl font-black italic uppercase">ข้อมูลผู้ป่วย</Title>
-              <Stack gap="md">
-                <TextInput label="ชื่อผู้ติดต่อ" value={patient.name} onChange={(e) => setPatient({...patient, name: e.target.value})} leftSection={<User size={16} />} classNames={{ input: "rounded-xl font-bold bg-[#F8FAFC] h-14" }} />
-                <TextInput label="เบอร์โทร" value={patient.tel} onChange={(e) => setPatient({...patient, tel: e.target.value})} leftSection={<Phone size={16} />} classNames={{ input: "rounded-xl font-bold bg-[#F8FAFC] h-14" }} />
-                <Box>
-                  <Text className="text-[11px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">แผนก</Text>
-                  <div className="h-14 bg-slate-50 rounded-xl px-5 flex items-center border-2 border-dashed border-slate-200">
-                    <Text className="font-black text-slate-400 italic uppercase">{sectionLabel}</Text>
-                  </div>
-                </Box>
-                <Textarea label="รายละเอียด" placeholder="บันทึก..." minRows={4} classNames={{ input: "rounded-xl font-bold bg-[#F8FAFC] p-5" }} />
-              </Stack>
+              <TextInput label="FULL NAME" value={hasActivePatient ? patient.name : "N/A"} readOnly radius="md" size="md" leftSection={<User size={16} className="text-slate-400" />} classNames={{ input: "font-bold h-12 bg-slate-50" }} />
+              <TextInput label="CONTACT" value={hasActivePatient ? patient.tel : "---"} readOnly radius="md" size="md" leftSection={<Phone size={16} className="text-slate-400" />} classNames={{ input: "font-bold h-12 bg-slate-50" }} />
+              <Textarea label="SESSION NOTES" placeholder="ระบุข้อมูลเคส..." value={patient.notes} onChange={(e) => setPatient({...patient, notes: e.target.value})} disabled={!hasActivePatient} minRows={6} radius="md" classNames={{ input: "font-bold p-4 focus:border-blue-500" }} />
             </Stack>
           </Paper>
+        </Grid.Col>
 
-          {/* ✅ 2. CENTER: THE SURGICAL DISPENSER TERMINAL */}
-          <Stack justify="center" align="center" gap={0} className="relative py-20">
-            
-            {/* FRONT PLATE: เครื่องจ่ายที่ทับอยู่ด้านหน้า (z-30) */}
-            <DispenseMachine />
-
-            {/* ANIMATION CONTAINER: ควบคุมการลอดออกมา */}
-            <div className="relative w-full flex justify-center h-[350px] overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={displayId}
-                  // ✅ เริ่มต้น: ซ่อนตัวอยู่ด้านหลังเครื่องจ่ายแบบ 100%
-                  initial={{ y: -350, opacity: 1 }} 
-                  animate={{ y: 0, opacity: 1 }}
-                  // ✅ ออก: ฉีกขาดร่วงหล่น (ต้องขยายขอบเขต overflow เพื่อให้เห็นตอนร่วง)
-                  exit={{ 
-                    y: 800, 
-                    rotate: 15, 
-                    opacity: 0, 
-                    transition: { duration: 0.7, ease: "circIn" } 
-                  }}
-                  transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                  className="absolute z-10"
+        {/* FIXED: Centered Terminal Area */}
+        <Grid.Col span={{ base: 12, md: 7.5 }}>
+          <Paper 
+            p={40} radius={40} withBorder 
+            className="bg-slate-50/50 border-slate-100 shadow-sm h-full flex flex-col items-center justify-center relative overflow-hidden"
+          >
+            <Box className="w-full flex flex-col items-center justify-center">
+              <DispenseMachine />
+              <div className="relative w-full flex justify-center h-[340px] overflow-hidden mt-4">
+                <AnimatePresence mode="wait">
+                  {hasActivePatient && (
+                    <motion.div 
+                      key={displayId} initial={{ y: -350 }} animate={{ y: 0 }} 
+                      exit={{ y: 900, rotate: 15, opacity: 0 }} transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                      className="absolute z-10"
+                    >
+                      <PaperTicketContent queueNumber={displayId} hospitalName="ALPHA TERMINAL" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <Stack gap="md" className="w-full max-w-sm mt-10">
+                <Group grow gap="md">
+                  <Button 
+                    onClick={() => triggerNextQueue('FINISH')} 
+                    loading={isAnimating} // แสดงสถานะ Loading เมื่อกด
+                    disabled={!hasActivePatient}
+                    color="teal" size="xl" radius="xl" 
+                    className="h-16 font-bold shadow-lg shadow-teal-500/10 active:scale-95 transition-all" 
+                    leftSection={<CheckCircle size={20} />}
+                  >
+                    FINISH
+                  </Button>
+                  <Button 
+                    onClick={() => triggerNextQueue('NO_SHOW')} 
+                    loading={isAnimating} // ป้องกันการกดรัว
+                    disabled={!hasActivePatient}
+                    color="red" size="xl" radius="xl" 
+                    className="h-16 font-bold shadow-lg shadow-red-500/10 active:scale-95 transition-all" 
+                    leftSection={<UserX size={20} />}
+                  >
+                    NO SHOW
+                  </Button>
+                </Group>
+                <Button 
+                  onClick={open} 
+                  loading={isAnimating} // ป้องกันการกดรัว
+                  disabled={!hasActivePatient}
+                  fullWidth color="blue" size="xl" radius="xl" 
+                  className="h-20 text-lg font-bold shadow-xl shadow-blue-600/20 active:scale-95 transition-all" 
+                  rightSection={<Send size={22} />}
                 >
-                  <PaperTicketContent queueNumber={displayId} hospitalName="โรงพยาบาลส่วนกลาง" />
-                </motion.div>
-              </AnimatePresence>
-            </div>
+                  TRANSFER PATIENT
+                </Button>
+              </Stack>
+            </Box>
+          </Paper>
+        </Grid.Col>
+      </Grid>
+    </Stack>
+  );
 
-            {/* ACTION BUTTONS: 45° Shadow */}
-            <Group grow className="w-full max-w-[500px] mt-16" gap="xl">
-               <div className="relative group cursor-pointer">
-                <div className="absolute inset-0 bg-[#059669] rounded-2xl translate-x-1 translate-y-1" />
-                <button onClick={handleFinishCase} disabled={isAnimating} className="relative w-full py-5 bg-[#34A832] text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1 active:scale-95 shadow-lg">
-                  เสร็จสิ้น <CheckCircle size={20} strokeWidth={3} />
-                </button>
-              </div>
-              <div className="relative group cursor-pointer">
-                <div className="absolute inset-0 bg-[#BE123C] rounded-2xl translate-x-1 translate-y-1" />
-                <button className="relative w-full py-5 bg-[#EF4444] text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1 active:scale-95 shadow-lg">
-                  ผู้ป่วยไม่มา <UserX size={20} strokeWidth={3} />
-                </button>
-              </div>
-            </Group>
+  // 2. ส่วนรายการคิว (1/3)
+  const QueueFeedUI = (
+    <Paper radius={{ base: 0, lg: 40 }} withBorder className="bg-white border-slate-100 shadow-2xl lg:shadow-blue-500/5 overflow-hidden h-full">
+      <Box p={30} className="bg-slate-50/50 border-b border-slate-100">
+        <Group justify="space-between" mb="md">
+          <Title order={3} className="text-xl font-extrabold text-[#1E293B]">Waitlist Feed</Title>
+          <Layers size={22} className="text-blue-600" />
+        </Group>
+        <TextInput placeholder="ค้นหาเลขคิว..." radius="xl" size="md" leftSection={<Search size={16} />} />
+      </Box>
+      <ScrollArea h={{ base: 'calc(100vh - 400px)', lg: 650 }} p={25}>
+        <Stack gap="md">
+          <AnimatePresence initial={false} mode="popLayout">
+            {waitlist.map((item, i) => (
+              <motion.div key={item.id} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -100 }}>
+                <Paper p={20} radius={24} withBorder className={`border-slate-50 transition-all ${i === 0 ? 'ring-2 ring-blue-500/20 bg-blue-50/10 shadow-md' : ''}`}>
+                  <Flex justify="space-between" align="center">
+                    <Stack gap={0}><Title order={4} className="text-2xl font-black text-[#1E293B] italic tracking-tighter">{item.id}</Title><Text className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</Text></Stack>
+                    <Badge size="lg" radius="md" color="blue" variant="light" leftSection={<Clock size={12} />}>15m</Badge>
+                  </Flex>
+                </Paper>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </Stack>
+      </ScrollArea>
+    </Paper>
+  );
+
+  return (
+    <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
+      <Navbar user={{ name: "DR. PATHUM", role: "Operator" }} />
+
+      <main className="flex-1 lg:p-10 max-w-[1800px] mx-auto w-full z-10">
+        <Box className="lg:hidden">
+          <Tabs defaultValue="control" color="blue" variant="pills" radius="xl" p="md">
+            <Tabs.List grow className="bg-white p-1 rounded-full border border-slate-100 mb-6 shadow-sm">
+              <Tabs.Tab value="control" leftSection={<Activity size={16} />} className="font-bold h-12">Workstation</Tabs.Tab>
+              <Tabs.Tab value="feed" leftSection={<Layers size={16} />} className="font-bold h-12">Feed</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="control" px="xs">{WorkstationUI}</Tabs.Panel>
+            <Tabs.Panel value="feed">{QueueFeedUI}</Tabs.Panel>
+          </Tabs>
+        </Box>
+
+        <Box className="hidden lg:block px-6">
+          <Grid gutter={40} align="stretch">
+            <Grid.Col span={8}>{WorkstationUI}</Grid.Col>
+            <Grid.Col span={4}>{QueueFeedUI}</Grid.Col>
+          </Grid>
+        </Box>
+      </main>
+
+      <RedirectModal opened={opened} onClose={close} patient={patient} queueId={displayId} isAnimating={isAnimating} onConfirm={() => triggerNextQueue('REDIRECT')} />
+    </Box>
+  );
+}
+
+// MODAL: ปุ่ม X อยู่มุมบนขวา และรองรับ Cooldown
+function RedirectModal({ opened, onClose, patient, queueId, isAnimating, onConfirm }) {
+  const [target, setTarget] = useState(null);
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size="600px">
+      <Box className="p-10 lg:p-14 bg-white relative">
+        <ActionIcon 
+          variant="light" color="gray" radius="xl" size="xl" onClick={onClose} 
+          style={{ position: 'absolute', top: '28px', right: '28px', zIndex: 100 }} 
+          className="hover:bg-red-50 hover:text-red-500 transition-colors"
+        >
+          <X size={24} />
+        </ActionIcon>
+
+        <Stack gap={40}>
+          <Stack gap={4}>
+            <Text className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Workstation Transfer</Text>
+            <Title className="text-4xl font-black text-[#1E293B] italic tracking-tighter">{queueId}</Title>
           </Stack>
 
-          {/* 3. RIGHT COLUMN: QUEUE LIST (คงเดิม) */}
-          <Paper radius={40} withBorder className="bg-white border-gray-100 shadow-xl flex flex-col h-[700px] overflow-hidden">
-             <div className="p-8 border-b border-gray-50 bg-[#FBFBFC]">
-                <Title order={4} className="text-sm font-black text-slate-900 uppercase italic">Next In Line</Title>
-              </div>
-              <div className="flex-1 p-5 space-y-4 overflow-y-auto bg-slate-50/30">
-                {Array(6).fill(null).map((_, i) => (
-                  <Box key={i} style={{ opacity: i === 0 ? 1 : i === 1 ? 0.6 : 0.3 }} className="relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                    <Text className="text-2xl font-black text-slate-900 italic tracking-tighter">A0{25 + i}</Text>
-                    <Text className="text-[10px] font-black text-slate-400 uppercase mt-2">NAME: PATIENT</Text>
-                  </Box>
-                ))}
-              </div>
-          </Paper>
-
-        </div>
-      </main>
-    </div>
+          <Stack gap="xl">
+            <TextInput label="PATIENT IDENTIFICATION" value={patient.name} readOnly radius="md" size="lg" classNames={{ input: "font-bold h-14 bg-slate-50" }} />
+            <Select label="REDIRECT TO UNIT" placeholder="เลือกแผนก..." data={SECTION_OPTIONS} value={target} onChange={setTarget} radius="md" size="lg" classNames={{ input: "font-bold h-14" }} />
+          </Stack>
+          
+          <Button 
+            onClick={onConfirm} 
+            loading={isAnimating} // ป้องกันการกดรัวใน Modal
+            disabled={!target} 
+            fullWidth size="xl" radius="xl" color="blue" 
+            className="h-20 text-lg font-bold shadow-xl active:scale-95 transition-all"
+            rightSection={<ArrowRight size={22} />}
+          >
+            CONFIRM TRANSFER
+          </Button>
+        </Stack>
+      </Box>
+    </Modal>
   );
 }
