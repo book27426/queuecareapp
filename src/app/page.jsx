@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowRight, Ticket, Clock, ShieldCheck, HeartHandshake, Globe, Activity 
 } from 'lucide-react';
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { 
   Box, Text, Stack, Group, Title, Container, Button, ThemeIcon, SimpleGrid 
 } from '@mantine/core';
