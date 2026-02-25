@@ -10,7 +10,7 @@ import {
   Clock, Layers, ArrowRight, Activity, Settings2, Plus, Pencil, X, RefreshCw, Timer,
   Users, CheckCircle2, LayoutGrid, ShieldCheck, Search, ChevronRight, Monitor 
 } from 'lucide-react';
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
