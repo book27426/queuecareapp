@@ -126,7 +126,7 @@ export default function StaffManagementPage() {
                     <Text className="text-xs font-bold text-slate-500">{f.staffCount} STAFF MEMBERS</Text>
                   </Group>
                   <Button 
-                    component={Link} href={`/staff/${f.id}`}
+                    component={Link} href={`/facilities/${f.id}`}
                     variant="filled" color="blue" radius="xl" 
                     className="h-12 px-6 font-bold shadow-lg shadow-blue-600/10 active:scale-95 transition-all"
                     rightSection={<ArrowRight size={18} />}

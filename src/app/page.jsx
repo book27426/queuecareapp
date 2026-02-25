@@ -51,11 +51,6 @@ export default function IndexPage() {
             <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
               <div className="w-full lg:w-1/2 space-y-10 text-center lg:text-left">
                 <Stack gap="xl">
-                  <Group justify={{ base: 'center', lg: 'flex-start' }} gap="xs">
-                    <Text className="tracking-[0.2em] text-[#64748B] font-bold text-[10px] uppercase border-b-2 border-blue-100 pb-1">
-                      Verified Institutional Standard
-                    </Text>
-                  </Group>
 
                   <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-[#1E293B] leading-[1.1] tracking-tighter">
                     Modern access to <br/>
@@ -128,17 +123,6 @@ export default function IndexPage() {
         <Container size="lg">
           <div className="flex flex-col items-center text-center gap-10">
             <div className="opacity-90">
-              <QueueCareLogo />
-            </div>
-            
-            <Text className="text-slate-400 text-sm max-w-md font-medium leading-relaxed">
-              Standardizing healthcare access through intelligent queue management and absolute transparency.
-            </Text>
-
-            <div className="w-full border-t border-white/5 pt-12">
-              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em]">
-                © 2026 • Professional Patient Flow Systems
-              </Text>
             </div>
           </div>
         </Container>

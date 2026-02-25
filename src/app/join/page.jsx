@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Container, TextInput, SimpleGrid, Box, Text, Title, Group, Stack, Modal, 
-  Paper, ThemeIcon, Button, ActionIcon, Avatar, Flex
+  Paper, ThemeIcon, Button, ActionIcon, Avatar, Flex,
+  Center, Badge, Loader
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Search, Clock, Ticket, X, Activity, ArrowRight, User, Phone, Building2 } from 'lucide-react';
+import { Search, Clock, Ticket, X, Activity, User, Phone, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Navbar } from "@/components/Navbar";
@@ -22,24 +23,65 @@ const FACILITIES = [
 export default function JoinQueuePage() {
   const router = useRouter();
   const [opened, { open, close }] = useDisclosure(false);
+
+  const [facilities, setFacilities] = useState([]); 
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [step, setStep] = useState('form'); 
-  const [newQueueId] = useState("A026");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [newQueueId, setNewQueueId] = useState("");
+
+  const fetchSections = async (nameQuery) => {
+  if (!nameQuery || nameQuery.trim() === "") {
+    setFacilities([]);
+    return;
+  }
+  
+  setLoading(true);
+  try {
+    const token = process.env.NEXT_PUBLIC_ACCESS_TOKEN || 'ใส่_TOKEN_ตรงนี้_เพื่อทดสอบ'; 
+    
+    const response = await fetch(`https://queuecaredev.vercel.app/api/v1/section?name=${encodeURIComponent(nameQuery)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Server Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (result.success && result.data) {
+      setFacilities(result.data);
+    }
+  } catch (error) {
+    console.error("❌ Fetch Detail:", error.message);
+
+  } finally {
+    setLoading(false);
+  }
+};
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchSections(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const handleHospitalSelect = (hospital) => {
-    if (hospital.status === 'OPEN') {
-      setSelectedHospital(hospital);
-      setStep('form');
-      open();
-    }
-  };
-
-  const handleJoinQueue = (e) => {
-    e.preventDefault();
-    localStorage.setItem('user_queue_id', newQueueId);
-    window.dispatchEvent(new Event('queueUpdated'));
-    setStep('printing');
+    setSelectedHospital(hospital);
+    setStep('form');
+    setName(""); setPhone("");
+    open();
   };
 
   return (
@@ -50,121 +92,69 @@ export default function JoinQueuePage() {
         <Container size="xl">
           <Stack gap={50}>
             <Stack align="center" gap="md" className="text-center">
-               <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">
-                 Institutional Directory
-               </Text>
                <Title className="text-4xl md:text-6xl font-extrabold text-[#1E293B] tracking-tighter">
                  Select <span className="text-blue-600">Institution.</span>
                </Title>
                
                <Box className="w-full max-w-lg mt-4 px-4">
                  <TextInput
-                   size="xl" radius="xl" placeholder="ค้นหาชื่อสถานพยาบาล..."
-                   value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                   leftSection={<Search size={20} className="text-blue-600" />}
-                   styles={{ 
-                     input: { 
-                        backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', 
-                        fontWeight: 600, height: '60px', fontSize: '15px'
-                     } 
-                   }}
+                   size="xl" radius="xl" placeholder="ค้นหาหน่วยงานที่คุณต้องการ..."
+                   value={searchQuery} 
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                   leftSection={loading ? <Loader size="xs" /> : <Search size={20} className="text-blue-600" />}
                  />
                </Box>
             </Stack>
 
             <SimpleGrid cols={{ base: 1, lg: 3 }} spacing={20}>
-              {FACILITIES.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase())).map((hospital) => (
-                <FacilityCard key={hospital.id} hospital={hospital} onSelect={handleHospitalSelect} />
+              {facilities.map((hospital) => (
+                <FacilityCard 
+                  key={hospital.id} 
+                  hospital={hospital} 
+                  onSelect={handleHospitalSelect} 
+                />
               ))}
             </SimpleGrid>
+            
+            {facilities.length === 0 && searchQuery && !loading && (
+              <Center p="xl">
+                <Text c="dimmed">ไม่พบหน่วยงานที่คุณค้นหา</Text>
+              </Center>
+            )}
           </Stack>
         </Container>
       </main>
 
-      {/* Modal */}
-      <Modal opened={opened} onClose={close} centered radius="32px" size={step === 'form' ? "lg" : "xl"} withCloseButton={false} padding={0}>
-        <Box className="p-10 md:p-14 bg-white">
-          <AnimatePresence mode="wait">
-            {step === 'form' ? (
-              <motion.div key="form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Stack gap="xl">
-                  <Group justify="space-between" align="center">
-                    <Title order={2} className="text-2xl font-extrabold text-[#1E293B] tracking-tight">{selectedHospital?.name}</Title>
-                    <ActionIcon variant="light" color="gray" radius="xl" size="xl" onClick={close}><X size={24} /></ActionIcon>
-                  </Group>
-                  <form onSubmit={handleJoinQueue} className="space-y-6">
-                    <TextInput required label="ชื่อ-นามสกุล" size="lg" radius="md" leftSection={<User size={18} />} placeholder='กรอกชื่อและนามสกุล' classNames={{ input: "font-bold h-14" }} />
-                    <TextInput required label="เบอร์โทรศัพท์" size="lg" radius="md" leftSection={<Phone size={18} />} placeholder='กรอกเบอร์ติดต่อ' classNames={{ input: "font-bold h-14" }} />
-                    <Button type="submit" fullWidth size="xl" radius="xl" color="blue" className="h-16 font-bold shadow-xl shadow-blue-600/20 active:scale-95 transition-all">จองคิว</Button>
-                  </form>
-                </Stack>
-              </motion.div>
-            ) : (
-              <motion.div key="printing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center py-16 bg-slate-50 rounded-[32px]">
-                <DispenseMachine />
-                <div className="relative h-[300px] overflow-hidden">
-                  <motion.div initial={{ y: -300 }} transition={{ duration: 0.6 }} animate={{ y: 0 }}><PaperTicketContent queueNumber={newQueueId} hospitalName={selectedHospital?.name} /></motion.div>
-                </div>
-                <Button onClick={() => { close(); router.push('/myqueue'); }} size="xl" radius="xl" color="dark" className="mt-8 px-12 h-16 font-bold shadow-2xl" leftSection={<Ticket size={24} />}>ดูคิวของฉัน</Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Box>
-      </Modal>
     </Box>
   );
-}
+} 
 
+// 🏥 ปรับ FacilityCard ให้รับข้อมูลจาก API จริง
 function FacilityCard({ hospital, onSelect }) {
-  const isOpen = hospital.status === "OPEN";
-
   return (
-    <motion.div whileHover={isOpen ? { y: -5 } : {}} onClick={() => onSelect(hospital)}>
-      <Paper 
-        p={20} radius="24px" withBorder 
-        className={`cursor-pointer transition-all duration-300 relative overflow-hidden
-          ${isOpen ? 'bg-white border-slate-100 hover:shadow-xl' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}
-      >
-        <Flex 
-          direction={{ base: 'row', lg: 'column' }} 
-          gap={{ base: 'md', lg: 'xl' }}
-          align={{ base: 'center', lg: 'stretch' }}
-        >
-          <Box className="w-20 md:w-24 lg:w-full aspect-square bg-slate-50 rounded-2xl flex items-center justify-center p-4 border border-slate-100/50 flex-shrink-0">
-            {hospital.logo ? (
-              // object-contain: ย่อรูปให้พอดีกรอบสี่เหลี่ยมโดยไม่เสียสัดส่วน
-              <img src={hospital.logo} alt="Logo" className="w-full h-full object-contain" />
-            ) : (
-              <Building2 className="text-slate-200" size={32} />
-            )}
-          </Box>
-
-          {/* Content Area ... (เหมือนเดิม) */}
-          <Stack gap="xs" className="flex-1">
-            <Group justify="space-between" align="center">
-              <Box className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest
-                ${isOpen ? 'bg-teal-50 text-teal-600' : 'bg-slate-200 text-slate-500'}`}>
-                {hospital.status}
-              </Box>
-              <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-teal-500 animate-pulse' : 'bg-slate-300'}`} />
+    <motion.div whileHover={{ y: -5 }} onClick={() => onSelect(hospital)}>
+      <Paper p={24} radius="24px" withBorder className="bg-white border-slate-100 hover:shadow-xl cursor-pointer">
+        <Stack gap="xs">
+          <Badge color="blue" variant="light" size="xs">ACTIVE UNIT</Badge>
+          <Title order={4} className="text-lg font-extrabold text-[#1E293B] line-clamp-1">
+            {hospital.name} {/* "Traffy" */}
+          </Title>
+          <Group gap="lg">
+            <Group gap={4}>
+              <Clock size={14} className="text-slate-400" />
+              <Text className="text-[12px] font-bold text-slate-600">
+                Wait: {hospital.default_wait_time}m {/* 10 */}
+              </Text>
             </Group>
-
-            <Title order={4} className="text-lg font-extrabold text-[#1E293B] tracking-tight leading-tight line-clamp-1">
-              {hospital.name}
-            </Title>
-            
-            <Group gap="lg" className="mt-1">
-              <Group gap={4}>
-                <Clock size={12} className="text-slate-400" />
-                <Text className="text-[11px] font-bold text-slate-600">{hospital.open}-{hospital.close}</Text>
-              </Group>
-              <Group gap={4}>
-                <Activity size={12} className="text-blue-600" />
-                <Text className="text-[11px] font-bold text-blue-600">{isOpen ? `${hospital.waitMin}m wait` : '--'}</Text>
-              </Group>
+            <Group gap={4}>
+              <Activity size={14} className="text-blue-600" />
+              <Text className="text-[12px] font-bold text-blue-600">
+                Predicted: {hospital.predicted_time}m {/* 15 */}
+              </Text>
             </Group>
-          </Stack>
-        </Flex>
+          </Group>
+          <Button fullWidth mt="md" radius="xl" variant="light" color="blue">จองคิวหน่วยงานนี้</Button>
+        </Stack>
       </Paper>
     </motion.div>
   );
