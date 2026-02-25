@@ -11,7 +11,7 @@ import {
   CheckCircle, UserX, User, Phone, Layers, Clock, Send, X, ArrowRight, ArrowLeft,
   Search, Info, Activity 
 } from 'lucide-react';
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 

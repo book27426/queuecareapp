@@ -7,7 +7,7 @@ import {
   Paper, ThemeIcon, Badge, ActionIcon, SegmentedControl, Center, Flex 
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Navbar } from "@/components/Navbar"; 
+import Navbar from "@/components/Navbar"; 
 import { 
   Ticket, History as HistoryIcon, Plus, Clock, Hash, Trash2, 
   AlertTriangle, CheckCircle2, Calendar, ChevronRight, Activity

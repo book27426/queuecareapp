@@ -11,7 +11,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { Search, Clock, Ticket, X, Activity, User, Phone, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 
 const FACILITIES = [
