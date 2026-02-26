@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box, Container, Title, Text, TextInput, Button, Stack, Paper,
-  Center, Loader, Avatar, FileButton, ActionIcon, Grid, Group, Alert
+  Center, Loader, Avatar, FileButton, ActionIcon, Grid, Alert
 } from "@mantine/core";
 import { Camera, User, Phone, ChevronRight, AlertCircle } from "lucide-react";
 
@@ -13,52 +13,62 @@ export default function SetupProfilePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  
+  // ✅ เก็บ ID ของพนักงานที่ได้จาก API ตอนโหลดหน้า
+  const [staffId, setStaffId] = useState(null);
 
   // Profile States
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(""); // UI มี แต่ใน API Doc หลักไม่มี (ใส่เผื่อไว้)
   const [imagePreview, setImagePreview] = useState(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  // ✅ ใช้ v1 ตามเอกสาร
+  const API_URL = "https://queuecaredev.vercel.app/api/v1";
 
-  // 1. ตรวจสอบสถานะ Profile เดิม
+  // 1. ตรวจสอบสถานะและดึง Staff ID
   useEffect(() => {
     const checkProfile = async () => {
       const token = localStorage.getItem('access_token');
       
       if (!token) {
-        return router.push("/"); // ไม่มี Token ให้เด้งไป Login
+        console.warn("No token found, redirecting...");
+        return router.push("/");
       }
 
       try {
+        // ✅ ใช้ POST /staff ตาม Doc เพื่อตรวจสอบหรือสร้าง Staff entry
         const response = await fetch(`${API_URL}/staff`, {
-          method: "GET", // หรือ POST ตาม Spec ระบบจริง
+          method: "POST",
           headers: { 
             "Authorization": `Bearer ${token}`,
             "Accept": "application/json"
           },
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          // ถ้ามีข้อมูล Profile ครบแล้ว ไม่ต้องตั้งใหม่ ให้ไปหน้าหลักเลย
-          if (result.success && result.data?.first_name) {
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          setStaffId(result.data.id);
+          
+          // ถ้าตั้งค่าชื่อเรียบร้อยแล้ว ให้วาร์ปไปหน้า facilities เลย (ไม่ต้องตั้งซ้ำ)
+          if (result.data?.first_name && result.data?.last_name) {
             return router.push("/facilities");
           }
+        } else {
+          setErrorMsg(result.message || "ไม่สามารถดึงข้อมูลพนักงานได้");
         }
       } catch (err) {
         console.error("Fetch profile failed:", err);
-        setErrorMsg("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อตรวจสอบสถานะได้");
+        setErrorMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ (CORS/Network)");
       } finally {
         setLoading(false); 
       }
     };
 
     checkProfile();
-  }, [router, API_URL]);
+  }, [router]);
 
-  // 2. ฟังก์ชันจัดการรูปภาพ
   const handleImageChange = (file) => {
     if (file) {
       const reader = new FileReader();
@@ -67,40 +77,45 @@ export default function SetupProfilePage() {
     }
   };
 
-  // 3. ฟังก์ชันบันทึกข้อมูล (ระบบจริง ไม่มีข้ามขั้นตอน)
+  // 2. บันทึกข้อมูลจริง (ไม่มี Bypass)
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!staffId) return setErrorMsg("ไม่พบรหัสพนักงาน กรุณารีเฟรชหน้าจอ");
+
     setSubmitting(true);
     setErrorMsg(null);
     
     const token = localStorage.getItem("access_token");
 
     try {
-      const response = await fetch(`${API_URL}/staff`, {
+      // ✅ ใช้ PUT /staff?id={id} ตาม Doc
+      const response = await fetch(`${API_URL}/staff?id=${staffId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${token}` // ใส่เผื่อไว้ถ้า API ต้องการทั้ง Token และ Cookie
         },
+        credentials: 'include', // 🍪 ส่ง session Cookie ตามที่ Doc ระบุ
         body: JSON.stringify({ 
           first_name: firstName, 
-          last_name: lastName, 
-          phone_num: phone, 
-          image: imagePreview 
+          last_name: lastName,
+          role: "staff",   // ค่า Default ตาม Spec
+          section_id: 1,   // หรือค่าที่คุณต้องการ
+          email: ""        // ใส่เป็นค่าว่างหรือดึงจากสถานะ Login
         }),
       });
 
       const result = await response.json();
 
       if (response.ok && result.success) {
+        // ✅ สำเร็จจริงเท่านั้นถึงจะไปต่อ
         router.push("/facilities");
       } else {
-        // แจ้งเตือนตามจริงที่ Server ส่งมา
-        setErrorMsg(result.message || "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        setErrorMsg(result.message || "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (err) {
       console.error("Submit error:", err);
-      setErrorMsg("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network/CORS) ไม่สามารถบันทึกข้อมูลได้");
+      setErrorMsg("ไม่สามารถส่งข้อมูลได้ (CORS Error) กรุณาตรวจสอบการตั้งค่าหลังบ้าน");
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +126,7 @@ export default function SetupProfilePage() {
       <Center h="100vh" bg="#F8FAFC">
         <Stack align="center" gap="xs">
           <Loader size="xl" variant="dots" color="blue" />
-          <Text fw={700} c="dimmed">กำลังตรวจสอบข้อมูล...</Text>
+          <Text fw={700} c="dimmed">กำลังเตรียมข้อมูลโปรไฟล์...</Text>
         </Stack>
       </Center>
     );
@@ -124,13 +139,12 @@ export default function SetupProfilePage() {
           <Stack gap="xl">
             <Stack gap={4} align="center">
               <Box px={12} py={4} bg="#EBF5FF" style={{ borderRadius: 20 }}>
-                <Text size="xs" fw={800} c="blue" tt="uppercase" lts="1px">Staff Identity</Text>
+                <Text size="xs" fw={800} c="blue" tt="uppercase" lts="1px">Identity Setup</Text>
               </Box>
-              <Title order={2} fz={28} fw={900} c="#1E293B">ตั้งค่าโปรไฟล์ใหม่</Title>
-              <Text c="dimmed" size="sm">กรุณาระบุข้อมูลจริงเพื่อใช้ในระบบ</Text>
+              <Title order={2} fz={28} fw={900} c="#1E293B">ตั้งค่าโปรไฟล์เจ้าหน้าที่</Title>
+              <Text c="dimmed" size="sm">ข้อมูลนี้จะถูกใช้ในการระบุตัวตนในระบบคิว</Text>
             </Stack>
 
-            {/* Error Alert เมื่อ API พัง */}
             {errorMsg && (
               <Alert variant="light" color="red" icon={<AlertCircle size={18} />}>
                 {errorMsg}
@@ -139,27 +153,12 @@ export default function SetupProfilePage() {
 
             <Center>
               <Box pos="relative">
-                <Avatar
-                  src={imagePreview}
-                  size={140}
-                  radius="140px"
-                  style={{ border: "5px solid #F1F5F9", boxShadow: "0 15px 30px -10px rgba(0,0,0,0.1)" }}
-                >
+                <Avatar src={imagePreview} size={140} radius="140px">
                   {!imagePreview && <User size={60} color="#CBD5E1" />}
                 </Avatar>
                 <FileButton onChange={handleImageChange} accept="image/png,image/jpeg">
                   {(props) => (
-                    <ActionIcon
-                      {...props}
-                      variant="filled"
-                      color="blue"
-                      size={45}
-                      radius="xl"
-                      pos="absolute"
-                      bottom={5}
-                      right={5}
-                      style={{ border: "4px solid white", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}
-                    >
+                    <ActionIcon {...props} variant="filled" color="blue" size={45} radius="xl" pos="absolute" bottom={5} right={5}>
                       <Camera size={20} />
                     </ActionIcon>
                   )}
@@ -216,9 +215,8 @@ export default function SetupProfilePage() {
                   h={64}
                   fz={18}
                   rightSection={<ChevronRight size={20} />}
-                  style={{ boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.3)" }}
                 >
-                  บันทึกข้อมูลสำเร็จ
+                  บันทึกข้อมูลและเริ่มต้นใช้งาน
                 </Button>
               </Stack>
             </form>

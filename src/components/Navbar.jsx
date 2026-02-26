@@ -4,20 +4,19 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; 
 import { 
-  Activity, Ticket, Phone, ArrowRight, UserCircle2, 
-  LogOut, ShieldCheck, X, Camera, User, Check 
+  Activity, Phone, UserCircle2, LogOut, ShieldCheck, X, Check 
 } from 'lucide-react'; 
 import { 
   Group, Stack, Text, Box, Modal, TextInput, Button, Title, 
-  PinInput, ActionIcon, Flex, Badge, Avatar, UnstyledButton, Center
+  PinInput, ActionIcon, Flex, Avatar, UnstyledButton, Center, Alert, Loader
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks'; 
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ✅ นำเข้า Firebase Tools (ต้องมี signOut เพิ่มเข้ามา)
+// ✅ นำเข้า Firebase
 import { auth, googleProvider, signInWithPopup, signOut } from "@/lib/firebase";
+import { GoogleAuthProvider } from "firebase/auth";
 
-// --- Logo Component ---
 export const QueueCareLogo = () => (
   <Group gap="xs" wrap="nowrap" style={{ pointerEvents: 'none' }}>
     <Box style={{ width: 40, height: 40, backgroundColor: '#2563EB', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -33,6 +32,9 @@ export default function Navbar({ user }) {
   const [profileOpened, { open: openProfile, close: closeProfile }] = useDisclosure(false);
   
   const [currentUser, setCurrentUser] = useState(user);
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // ✅ ป้องกันกดซ้อน
+  const [loginError, setLoginError] = useState(null);
+  
   const [loginStep, setLoginStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [otpValue, setOtpValue] = useState('');
@@ -43,51 +45,62 @@ export default function Navbar({ user }) {
     if (user) setCurrentUser(user);
   }, [user]);
 
-  // 🏥 ฟังก์ชัน Google Login สำหรับ Staff (ฉบับแก้ไข: ขอ Token สด)
+  // 🏥 ฟังก์ชัน Google Login สำหรับ Staff (แก้ไขเรื่อง Popup และ Bypass)
   const handleStaffLogin = async () => {
+    if (isLoggingIn) return; // ✅ ป้องกัน Double Click ที่ทำให้ Popup พัง
+
+    setIsLoggingIn(true);
+    setLoginError(null);
+
     try {
-      // 1. เรียกหน้าต่าง Google Login
+      // 1. เรียก Google Login
       const result = await signInWithPopup(auth, googleProvider);
       
-      // 2. 🔑 "ขอคีย์ดอกจริง" (JWT Token) จาก Firebase
+      // 2. 🔑 ดึง JWT Token
       const token = await result.user.getIdToken();
       
-      // 3. 💾 เซฟคีย์ลงเครื่อง (LocalStorage) เพื่อให้ API หน้าอื่นๆ หยิบไปใช้ได้
+      // 3. 💾 เซฟลงเครื่องเพื่อใช้ยิง API จริง
       localStorage.setItem('access_token', token);
       
-      console.log("✅ กุญแจถูกสร้างและเซฟลงเครื่องแล้ว!");
-
+      console.log("✅ Token saved. Moving to profile setup...");
       closeLogin();
       
-      // 4. 🚀 ส่งไปที่หน้า Setup Profile เพื่อตรวจสอบข้อมูลพนักงาน
+      // 4. 🚀 ส่งไปเช็คโปรไฟล์ที่หน้า Setup (ซึ่งเราแก้ให้เข้มงวดแล้ว)
       router.push('/setup-profile'); 
+
     } catch (error) {
       console.error("Staff Login Error:", error);
+      
+      // ✅ ดักจับ Error Popup ที่คุณเจอ
+      if (error.code === 'auth/popup-closed-by-user') {
+        setLoginError("คุณปิดหน้าต่าง Login เร็วเกินไป กรุณาลองใหม่อีกครั้ง");
+      } else {
+        setLoginError("เกิดข้อผิดพลาด: " + error.message);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  // 🎫 สำหรับ User ปกติ (ยังใช้ระบบ Phone/OTP Mockup)
-  const handleUserLogin = () => {
-    localStorage.setItem('user_queue_id', 'Q-123'); 
-    closeLogin();
-    router.push('/myqueue'); 
-  };
-
-  // 🚪 ฟังก์ชัน Logout (ฉบับแก้ไข: ล้างทั้ง Firebase และ LocalStorage)
+  // 🚪 ฟังก์ชัน Logout (ล้างค่าทุกอย่างจริง 100%)
   const handleLogout = async () => {
     try {
-      await signOut(auth); // สั่ง Firebase ให้ Logout
+      await signOut(auth);
+      localStorage.removeItem('access_token');
       localStorage.removeItem('user_queue_id');
-      localStorage.removeItem('access_token'); // ล้างกุญแจทิ้ง
       setCurrentUser(null);
       router.push('/');
-      router.refresh(); // บังคับรีเฟรชสถานะ
+      window.location.reload(); // ✅ รีโหลดเพื่อให้ State ทั้งแอปสะอาด
     } catch (error) {
       console.error("Logout Error:", error);
     }
   };
 
-  const handleSendOTP = () => { if (phone.length >= 10) { setLoginStep('otp'); } };
+  const handleUserLogin = () => {
+    localStorage.setItem('user_queue_id', 'Q-123'); 
+    closeLogin();
+    router.push('/myqueue'); 
+  };
 
   if (!mounted) return <nav className="h-20 bg-white border-b border-slate-100" />;
 
@@ -106,7 +119,7 @@ export default function Navbar({ user }) {
                   </Avatar>
                   <Stack gap={0} visibleFrom="xs">
                     <Text className="text-[11px] font-bold text-slate-900 uppercase">
-                      {currentUser.first_name || 'Staff Name'}
+                      {currentUser.first_name || 'Staff'}
                     </Text>
                     <Text className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{currentUser.role || 'Officer'}</Text>
                   </Stack>
@@ -115,65 +128,76 @@ export default function Navbar({ user }) {
               <ActionIcon variant="subtle" color="gray" radius="xl" size="lg" onClick={handleLogout}><LogOut size={18} /></ActionIcon>
             </Group>
           ) : (
-            <Button onClick={openLogin} radius="xl" color="blue" className="px-8 font-bold shadow-xl transition-transform hover:scale-105">Login</Button>
+            <Button onClick={openLogin} radius="xl" color="blue" className="px-8 font-bold shadow-xl">Login</Button>
           )}
         </Group>
       </nav>
 
-      {/* --- Modal จัดการโปรไฟล์ (โชว์เมื่อ Login แล้ว) --- */}
+      {/* Modal เข้าสู่ระบบ */}
+      <Modal opened={loginOpened} onClose={() => { if(!isLoggingIn) closeLogin(); }} centered radius="40px" withCloseButton={false} padding={0} size="440px">
+        <Box className="p-10 bg-white relative">
+          {!isLoggingIn && (
+            <ActionIcon variant="light" color="gray" radius="xl" onClick={closeLogin} style={{ position: 'absolute', top: 24, right: 24 }}><X size={20} /></ActionIcon>
+          )}
+          
+          <AnimatePresence mode="wait">
+            <Stack gap="xl">
+              <Stack gap={4}>
+                <Text className="text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">Identification</Text>
+                <Title order={2} className="text-2xl font-extrabold text-[#1E293B]">เข้าสู่ระบบ</Title>
+              </Stack>
+
+              {loginError && (
+                <Alert color="red" variant="light" size="xs">
+                  {loginError}
+                </Alert>
+              )}
+
+              {/* ส่วนของ User ปกติ */}
+              {loginStep === 'phone' ? (
+                <Stack gap="md">
+                  <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08X-XXX-XXXX" label="PHONE NUMBER" size="lg" radius="md" />
+                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => setLoginStep('otp')} className="h-16 font-bold shadow-lg">Request OTP</Button>
+                </Stack>
+              ) : (
+                <Stack gap="md" align="center">
+                  <PinInput length={6} size="xl" value={otpValue} onChange={setOtpValue} />
+                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleUserLogin} className="h-16 font-bold">Confirm</Button>
+                  <Button variant="subtle" color="gray" size="xs" onClick={() => setLoginStep('phone')}>Back</Button>
+                </Stack>
+              )}
+              
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
+                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Or Staff Access</span></div>
+              </div>
+
+              {/* ✅ ปุ่ม Google Staff Login (แบบกันพัง) */}
+              <UnstyledButton onClick={handleStaffLogin} disabled={isLoggingIn}>
+                <Flex justify="center" align="center" gap={10} className={`py-4 rounded-2xl border transition-all ${isLoggingIn ? 'bg-slate-50 border-slate-100' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'}`}>
+                  {isLoggingIn ? (
+                    <Loader size="xs" color="blue" />
+                  ) : (
+                    <>
+                      <img src="https://www.google.com/favicon.ico" width={16} alt="Google" />
+                      <Text className="text-[11px] font-black uppercase text-slate-500">Continue with Google Staff</Text>
+                      <ShieldCheck size={14} className="text-slate-300" />
+                    </>
+                  )}
+                </Flex>
+              </UnstyledButton>
+            </Stack>
+          </AnimatePresence>
+        </Box>
+      </Modal>
+
+      {/* Modal โปรไฟล์ */}
       <StaffProfileModal 
         opened={profileOpened} 
         onClose={closeProfile} 
         user={currentUser} 
         onUpdate={(data) => { setCurrentUser(prev => ({...prev, ...data})); closeProfile(); }} 
       />
-
-      {/* --- Modal เข้าสู่ระบบ --- */}
-      <Modal opened={loginOpened} onClose={() => { closeLogin(); setLoginStep('phone'); }} centered radius="40px" withCloseButton={false} padding={0} size="440px">
-        <Box className="p-10 bg-white relative">
-          <ActionIcon variant="light" color="gray" radius="xl" onClick={closeLogin} style={{ position: 'absolute', top: 24, right: 24 }}><X size={20} /></ActionIcon>
-          
-          <AnimatePresence mode="wait">
-            {loginStep === 'phone' ? (
-              <motion.div key="phone" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Stack gap="xl">
-                  <Stack gap={4}>
-                    <Text className="text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">Identification</Text>
-                    <Title order={2} className="text-2xl font-extrabold text-[#1E293B]">เข้าสู่ระบบ</Title>
-                    <Text size="xs" c="dimmed">เลือกช่องทางการเข้าสู่ระบบตามสิทธิ์ของคุณ</Text>
-                  </Stack>
-
-                  <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08X-XXX-XXXX" label="PHONE NUMBER" size="lg" radius="md" leftSection={<Phone size={18} className="text-blue-600" />} />
-                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleSendOTP} className="h-16 font-bold shadow-lg">Request OTP Code</Button>
-                  
-                  <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                    <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Or Staff Access</span></div>
-                  </div>
-
-                  {/* ✅ ปุ่ม Google Staff Login ดอกสำคัญ */}
-                  <UnstyledButton onClick={handleStaffLogin}>
-                    <Flex justify="center" align="center" gap={10} className="py-4 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all group">
-                      <img src="https://www.google.com/favicon.ico" width={16} alt="Google" />
-                      <Text className="text-[11px] font-black uppercase text-slate-500 group-hover:text-blue-600">Continue with Google Staff</Text>
-                      <ShieldCheck size={14} className="text-slate-300 group-hover:text-blue-500" />
-                    </Flex>
-                  </UnstyledButton>
-                </Stack>
-              </motion.div>
-            ) : (
-              <motion.div key="otp" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Stack gap="xl" align="center">
-                  <Title order={2} className="text-2xl font-extrabold">ยืนยัน OTP</Title>
-                  <PinInput length={6} size="xl" radius="md" value={otpValue} onChange={setOtpValue} />
-                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleUserLogin} className="h-16 font-bold">Confirm Login</Button>
-                  <Button variant="subtle" color="gray" size="xs" onClick={() => setLoginStep('phone')}>Back to Phone Login</Button>
-                </Stack>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Box>
-      </Modal>
     </>
   );
 }
@@ -191,18 +215,18 @@ function StaffProfileModal({ opened, onClose, user, onUpdate }) {
   }, [opened, user]);
 
   return (
-    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={40} size="500px">
+    <Modal opened={opened} onClose={onClose} centered radius="40px" padding={40} size="500px" withCloseButton={false}>
       <Stack gap="xl">
-        <Title className="text-2xl font-extrabold text-[#1E293B]">จัดการโปรไฟล์</Title>
+        <Title className="text-2xl font-extrabold text-[#1E293B]">Profile Settings</Title>
         <Center>
-          <Avatar src={user?.image} size={100} radius="100%" color="blue" style={{ border: '4px solid #F1F5F9' }} />
+          <Avatar src={user?.image} size={100} radius="100%" color="blue" />
         </Center>
         <Group grow>
-          <TextInput label="FIRST NAME" value={firstName} onChange={(e) => setFirstName(e.target.value)} radius="md" size="lg" />
-          <TextInput label="LAST NAME" value={lastName} onChange={(e) => setLastName(e.target.value)} radius="md" size="lg" />
+          <TextInput label="FIRST NAME" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          <TextInput label="LAST NAME" value={lastName} onChange={(e) => setLastName(e.target.value)} />
         </Group>
-        <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => onUpdate({ first_name: firstName, last_name: lastName })} leftSection={<Check size={20} />}>
-          Update Information
+        <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => onUpdate({ first_name: firstName, last_name: lastName })}>
+          Update Profile
         </Button>
       </Stack>
     </Modal>

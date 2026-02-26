@@ -3,39 +3,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Text, Title, Group, Stack, TextInput, Modal, NumberInput, Select,
-  SimpleGrid, ActionIcon, Container, Button, Paper, ThemeIcon, Badge, Loader, Center, Alert
+  SimpleGrid, ActionIcon, Container, Button, Paper, ThemeIcon, Badge, Loader, Center, Alert, Avatar
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
-  Plus, Pencil, X, RefreshCw, ArrowRight, Users, Activity, Clock, Building2, ShieldCheck, Timer, Trash2, Search, AlertCircle 
+  Plus, Pencil, X, RefreshCw, ArrowRight, Activity, Clock, Building2, 
+  ShieldCheck, Timer, Trash2, Search, AlertCircle, UserPlus, Users, UserCog, LogOut
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
 
-const EXPIRE_OPTIONS = [
-  { value: '30', label: '30 MINUTES' },
-  { value: '60', label: '1 HOUR' },
-  { value: '360', label: '6 HOURS' },
-  { value: '720', label: '12 HOURS' },
-  { value: '1440', label: '1 DAY' },
-  { value: '10080', label: '1 WEEK' },
-  { value: '43200', label: '1 MONTH' },
-  { value: '0', label: 'NEVER' },
+const ROLE_OPTIONS = [
+  { value: 'staff', label: 'STAFF' },
+  { value: 'admin', label: 'ADMIN' },
+  { value: 'manager', label: 'MANAGER' },
 ];
 
 export default function StaffManagementPage() {
   const [listData, setListData] = useState([]);
+  const [mainSection, setMainSection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+  const [addModalOpened, { open: openAdd, close: closeAdd }] = useDisclosure(false);
+  const [joinModalOpened, { open: openJoin, close: closeJoin }] = useDisclosure(false);
+  const [staffModalOpened, { open: openStaff, close: closeStaff }] = useDisclosure(false);
+  
   const [editingData, setEditingData] = useState(null); 
+  const [selectedSection, setSelectedSection] = useState(null);
 
   const [globalInviteCode, setGlobalInviteCode] = useState('');
   const [globalCooldown, setGlobalCooldown] = useState(0);
-  const [globalExpire, setGlobalExpire] = useState('1440');
+  const [globalExpire, setGlobalExpire] = useState('30');
 
-  // --- 🌐 ฟังก์ชันดึงข้อมูล (แบบกันพัง) ---
+  // --- 🌐 1. API: Get Section (Case 1 & 2 ใน Doc) ---
   const fetchAllSections = useCallback(async (name = "") => {
     setLoading(true);
     setError(null);
@@ -45,33 +46,21 @@ export default function StaffManagementPage() {
         : `https://queuecaredev.vercel.app/api/v1/section?id=1`;
 
       const res = await fetch(url, { credentials: 'include' });
-      
-      // ถ้า Network ต่อติดแต่ Server ตอบ Error (เช่น 404, 500)
-      if (!res.ok) throw new Error(`Server status: ${res.status}`);
-      
       const result = await res.json();
 
       if (result.success) {
         if (result.mode === "main-section") {
-          setListData([result.data.section, ...result.data.sub_sections]);
+          setMainSection(result.data.section);
+          setListData(result.data.sub_sections || []);
         } else if (result.mode === "sub-section-staff") {
+          setMainSection(result.data.parent_section);
           setListData([result.data.own_section]);
-        } else if (Array.isArray(result.data)) {
-          setListData(result.data);
         } else {
-          setListData(result.data ? [result.data] : []);
+          setListData(Array.isArray(result.data) ? result.data : [result.data]);
         }
       }
     } catch (err) {
-      // 🚨 จุดสำคัญ: ถ้า Failed to fetch ให้ใส่ข้อมูลหลอกไว้เพื่อให้หน้าจอไม่ว่าง
-      console.error("Fetch Error:", err);
-      setError("API Connection Failed (Check CORS)");
-      
-      // ✅ Fallback Data: เพื่อให้คุณเห็น UI Card ระหว่างรอแก้ API
-      setListData([
-        { id: 1, name: "ALPHA HUB (OFFLINE)", wait_default: 300, predict_time: 15 },
-        { id: 2, name: "BETA SECTION (OFFLINE)", wait_default: 600, predict_time: 45 }
-      ]);
+      setError("Failed to connect to API. Please check CORS/Session.");
     } finally {
       setLoading(false);
     }
@@ -81,85 +70,90 @@ export default function StaffManagementPage() {
 
   useEffect(() => {
     let timer;
-    if (globalCooldown > 0) {
-      timer = setInterval(() => setGlobalCooldown(prev => prev - 1), 1000);
-    }
+    if (globalCooldown > 0) timer = setInterval(() => setGlobalCooldown(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [globalCooldown]);
 
-  const handleDelete = async (id) => {
-    if (!confirm("Confirm Delete?")) return;
+  // --- 🌐 2. API: Delete Section ---
+  const handleDeleteSection = async (id) => {
+    if (!confirm("Confirm soft delete?")) return;
     try {
-      const res = await fetch(`https://queuecaredev.vercel.app/api/v1/section?id=${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      await fetch(`https://queuecaredev.vercel.app/api/v1/section?id=${id}`, { 
+        method: 'DELETE', 
+        credentials: 'include' 
       });
-      if (res.ok) fetchAllSections();
-    } catch (err) { alert("Delete failed: CORS issue"); }
+      fetchAllSections();
+    } catch (e) { alert("Delete failed"); }
   };
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      <Navbar user={{ name: "SYSTEM ADMIN", role: "Manager" }} />
+      <Navbar user={{ name: "ADMIN", role: "Manager" }} />
 
-      <Container size="xl" className="flex-1 py-12 z-10">
-        <Stack gap={48}>
+      <Container size="xl" className="flex-1 py-12">
+        <Stack gap={40}>
           <Group justify="space-between" align="flex-end">
             <Stack gap={4}>
-              <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">Infrastructure</Text>
-              <Title fs="italic" className="text-4xl lg:text-6xl font-extrabold text-[#1E293B] tracking-tighter">
-                Facility <span className="text-blue-600">Hub.</span>
+              <Badge variant="filled" color="blue" size="sm" radius="sm">
+                HUB: {mainSection?.name || "ROOT"}
+              </Badge>
+              <Title fs="italic" className="text-4xl lg:text-5xl font-black text-[#1E293B]">
+                Infrastructure <span className="text-blue-600">Console.</span>
               </Title>
             </Stack>
 
             <Group align="flex-end">
                <TextInput 
-                 placeholder="Search name..." 
+                 placeholder="Search..." 
                  leftSection={<Search size={16} />}
                  value={searchQuery}
                  onChange={(e) => setSearchQuery(e.target.value)}
                  onKeyDown={(e) => e.key === 'Enter' && fetchAllSections(searchQuery)}
-                 radius="xl" size="md"
+                 radius="md"
                />
-               <Button onClick={() => { setEditingData(null); openModal(); }} size="xl" radius="xl" color="blue" leftSection={<Plus size={22} />} className="h-16 px-10 font-bold shadow-xl">
-                 ADD SECTION
-               </Button>
+               <Button variant="light" color="blue" leftSection={<UserPlus size={18} />} onClick={openJoin}>JOIN</Button>
+               <Button onClick={() => { setEditingData(null); openAdd(); }} color="blue" leftSection={<Plus size={18} />}>CREATE</Button>
             </Group>
           </Group>
 
-          {error && <Alert color="red" variant="light" icon={<AlertCircle size={16} />}>{error}</Alert>}
+          {error && <Alert color="red" variant="light" icon={<AlertCircle size={18}/>}>{error}</Alert>}
 
           {loading ? (
-            <Center h={300}><Loader color="blue" size="xl" type="dots" /></Center>
+            <Center h={300}><Loader color="blue" type="bars" /></Center>
           ) : (
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={32}>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="xl">
               {listData.map((f) => (
-                <Paper key={f.id} p={32} radius={40} withBorder className="bg-white border-slate-100 shadow-sm hover:shadow-2xl transition-all">
-                  <Group justify="space-between" align="flex-start" mb="xl">
-                    <ThemeIcon size={50} radius="xl" variant="light" color="blue"><Building2 /></ThemeIcon>
-                    <Group gap={8}>
-                      <ActionIcon variant="light" color="blue" size="lg" radius="xl" onClick={() => { setEditingData(f); openModal(); }}><Pencil size={18} /></ActionIcon>
-                      <ActionIcon variant="light" color="red" size="lg" radius="xl" onClick={() => handleDelete(f.id)}><Trash2 size={18} /></ActionIcon>
+                <Paper key={f.id} p={30} radius="32px" withBorder className="bg-white hover:shadow-xl transition-all relative overflow-hidden group">
+                  <Group justify="space-between" mb="xl">
+                    <ThemeIcon size={48} radius="lg" variant="light" color="blue"><Building2 size={24} /></ThemeIcon>
+                    <Group gap={5}>
+                      <ActionIcon variant="subtle" color="blue" onClick={() => { setEditingData(f); openAdd(); }}><Pencil size={16} /></ActionIcon>
+                      <ActionIcon variant="subtle" color="red" onClick={() => handleDeleteSection(f.id)}><Trash2 size={16} /></ActionIcon>
                     </Group>
                   </Group>
 
-                  <Stack gap={4} mb={32}>
-                    <Title order={3} fs="italic" className="text-2xl font-extrabold text-[#1E293B] uppercase">{f.name}</Title>
-                    <Badge variant="dot" size="sm">ID: {f.id}</Badge>
+                  <Stack gap={2} mb="xl">
+                    <Group justify="space-between">
+                        <Text size="xs" fw={800} c="blue">ID: {f.id}</Text>
+                        <Button variant="subtle" size="compact-xs" leftSection={<Users size={14} />} onClick={() => { setSelectedSection(f); openStaff(); }}>
+                            Manage Staff
+                        </Button>
+                    </Group>
+                    <Title order={3} className="text-2xl font-extrabold text-[#1E293B] truncate">{f.name}</Title>
                   </Stack>
 
-                  <SimpleGrid cols={2} spacing="md" mb={40}>
-                    <Paper p="md" radius="24px" bg="slate-50">
-                      <Text className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Wait Default</Text>
-                      <Text fs="italic" className="text-2xl font-black text-[#1E293B]">{f.wait_default ?? f.default_wait_time ?? 0}s</Text>
-                    </Paper>
-                    <Paper p="md" radius="24px" bg="slate-50">
-                      <Text className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Predict</Text>
-                      <Text fs="italic" className="text-2xl font-black text-[#1E293B]">{f.predict_time ?? f.predicted_time ?? 0}s</Text>
-                    </Paper>
+                  <SimpleGrid cols={2} gap="md" mb="xl">
+                    <Box className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <Group gap={6} mb={4}><Activity size={14} className="text-blue-500" /><Text size="xs" fw={700} c="dimmed">WAIT</Text></Group>
+                      <Text fz={20} fw={900}>{f.wait_default ?? f.default_wait_time ?? 0}s</Text>
+                    </Box>
+                    <Box className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <Group gap={6} mb={4}><Clock size={14} className="text-teal-500" /><Text size="xs" fw={700} c="dimmed">PREDICT</Text></Group>
+                      <Text fz={20} fw={900}>{f.predict_time ?? f.predicted_time ?? 0}s</Text>
+                    </Box>
                   </SimpleGrid>
 
-                  <Button variant="filled" color="blue" radius="xl" className="h-12 px-6 font-bold" rightSection={<ArrowRight size={18} />}>MANAGE QUEUE</Button>
+                  <Button fullWidth variant="filled" color="blue" radius="xl" h={54} className="font-bold shadow-lg" rightSection={<ArrowRight size={18} />}>MANAGE QUEUE</Button>
                 </Paper>
               ))}
             </SimpleGrid>
@@ -167,16 +161,125 @@ export default function StaffManagementPage() {
         </Stack>
       </Container>
 
-      <MasterModal 
-        opened={modalOpened} onClose={closeModal} data={editingData} 
-        onSuccess={() => fetchAllSections()}
-        inviteState={{ code: globalInviteCode, setCode: setGlobalInviteCode, cooldown: globalCooldown, setCooldown: setGlobalCooldown, expire: globalExpire, setExpire: setGlobalExpire }}
-      />
+      <JoinSectionModal opened={joinModalOpened} onClose={closeJoin} onSuccess={() => fetchAllSections()} />
+      <MasterModal opened={addModalOpened} onClose={closeAdd} data={editingData} parentId={mainSection?.id || 1} onSuccess={() => fetchAllSections()} 
+        inviteState={{ code: globalInviteCode, setCode: setGlobalInviteCode, cooldown: globalCooldown, setCooldown: setGlobalCooldown, expire: globalExpire, setExpire: setGlobalExpire }} />
+      <StaffManagementModal opened={staffModalOpened} onClose={closeStaff} section={selectedSection} />
     </Box>
   );
 }
 
-function MasterModal({ opened, onClose, data, onSuccess, inviteState }) {
+// --- ➕ 3. MODAL: Join Section (PUT /api/v1/staff) ---
+function JoinSectionModal({ opened, onClose, onSuccess }) {
+  const [code, setCode] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleJoin = async () => {
+    if (!code) return;
+    setSubmitting(true);
+    try {
+      // ✅ ตาม Doc: PUT /api/v1/staff พร้อม Body { invite_code }
+      const res = await fetch(`https://queuecaredev.vercel.app/api/v1/staff`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ invite_code: code })
+      });
+      const result = await res.json();
+      if (result.success) {
+        onSuccess();
+        onClose();
+        setCode('');
+      } else {
+        alert(result.message || "Invalid Code");
+      }
+    } catch (e) { alert("CORS Error"); } 
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="32px" withCloseButton={false} padding={0} size="md">
+      <Box className="p-10 bg-white">
+        <Stack gap="xl">
+          <Center><ThemeIcon size={60} radius="xl" color="blue" variant="light"><UserPlus size={30} /></ThemeIcon></Center>
+          <Title order={2} ta="center" className="font-black">JOIN SECTION</Title>
+          <TextInput placeholder="Enter Invite Code" value={code} onChange={(e) => setCode(e.target.value)} size="lg" radius="md" classNames={{ input: "text-center font-black text-blue-600 h-16 text-xl tracking-widest" }} />
+          <Button onClick={handleJoin} loading={submitting} fullWidth size="xl" radius="xl" color="blue" h={70} className="font-bold shadow-xl">CONFIRM JOIN</Button>
+          <Button variant="subtle" color="gray" onClick={onClose}>Cancel</Button>
+        </Stack>
+      </Box>
+    </Modal>
+  );
+}
+
+// --- 👤 4. MODAL: Staff Management (PUT /api/v1/staff?id=...) ---
+function StaffManagementModal({ opened, onClose, section }) {
+  const [staffs, setStaffs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (opened && section) {
+      const load = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`https://queuecaredev.vercel.app/api/v1/section?id=${section.id}`, { credentials: 'include' });
+          const result = await res.json();
+          if (result.success) setStaffs(result.data.staffs || []);
+        } catch (e) {} finally { setLoading(false); }
+      };
+      load();
+    }
+  }, [opened, section]);
+
+  const updateStaff = async (sid, role) => {
+    try {
+      // ✅ ตาม Doc: PUT /api/v1/staff?id={id}
+      await fetch(`https://queuecaredev.vercel.app/api/v1/staff?id=${sid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role, section_id: section.id })
+      });
+      setStaffs(prev => prev.map(s => s.id === sid ? { ...s, role } : s));
+    } catch (e) { alert("Update failed"); }
+  };
+
+  const removeStaff = async (sid) => {
+    if (!confirm("Remove staff?")) return;
+    try {
+      // ✅ ตาม Doc: DELETE /api/v1/staff?id={id}
+      await fetch(`https://queuecaredev.vercel.app/api/v1/staff?id=${sid}`, { method: 'DELETE', credentials: 'include' });
+      setStaffs(prev => prev.filter(s => s.id !== sid));
+    } catch (e) { alert("Delete failed"); }
+  };
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="32px" size="lg" title={<Text fw={900}>MANAGE STAFF: {section?.name}</Text>}>
+      <Stack gap="md" py="xl">
+        {loading ? <Center><Loader size="sm"/></Center> : staffs.map(s => (
+          <Paper key={s.id} p="md" withBorder radius="lg">
+            <Group justify="space-between">
+              <Group>
+                <Avatar color="blue"><UserCog size={20}/></Avatar>
+                <Stack gap={0}>
+                  <Text fw={700} size="sm">{s.first_name} {s.last_name}</Text>
+                  <Text size="xs" c="dimmed">{s.email}</Text>
+                </Stack>
+              </Group>
+              <Group gap="xs">
+                <Select size="xs" data={ROLE_OPTIONS} value={s.role} onChange={(val) => updateStaff(s.id, val)} w={100} />
+                <ActionIcon color="red" variant="light" onClick={() => removeStaff(s.id)}><LogOut size={14}/></ActionIcon>
+              </Group>
+            </Group>
+          </Paper>
+        ))}
+      </Stack>
+    </Modal>
+  );
+}
+
+// --- 🛠️ 5. MODAL: Master Section (POST/PUT /api/v1/section) ---
+function MasterModal({ opened, onClose, data, parentId, onSuccess, inviteState }) {
   const [name, setName] = useState('');
   const [waitDefault, setWaitDefault] = useState(300);
   const [submitting, setSubmitting] = useState(false);
@@ -193,19 +296,19 @@ function MasterModal({ opened, onClose, data, onSuccess, inviteState }) {
     if (inviteState.cooldown > 0 || !data?.id) return;
     setGenerating(true);
     try {
-      const url = `https://queuecaredev.vercel.app/api/v1/section/invite_code?id=${data.id}`;
-      const res = await fetch(url, {
+      // ✅ ตาม Doc: PUT /api/v1/section/invite_code?id={id}
+      const res = await fetch(`https://queuecaredev.vercel.app/api/v1/section/invite_code?id=${data.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ expire_minutes: inviteState.expire === '0' ? null : Number(inviteState.expire) })
+        body: JSON.stringify({ expire_minutes: Number(inviteState.expire) })
       });
       const result = await res.json();
       if (result.success) {
         inviteState.setCode(result.data.invite_code);
         inviteState.setCooldown(60); 
       }
-    } catch (err) { alert("CORS Error: API is blocked by browser safety."); } 
+    } catch (e) { alert("CORS Error"); } 
     finally { setGenerating(false); }
   };
 
@@ -214,50 +317,46 @@ function MasterModal({ opened, onClose, data, onSuccess, inviteState }) {
     setSubmitting(true);
     try {
       const method = data ? 'PUT' : 'POST';
-      const url = data 
-        ? `https://queuecaredev.vercel.app/api/v1/section?id=${data.id}` 
-        : `https://queuecaredev.vercel.app/api/v1/section`;
-
+      const url = data ? `https://queuecaredev.vercel.app/api/v1/section?id=${data.id}` : `https://queuecaredev.vercel.app/api/v1/section`;
+      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name, wait_default: Number(waitDefault), parent_id: 1 })
+        body: JSON.stringify({ 
+          name, 
+          wait_default: Number(waitDefault), 
+          parent_id: data?.parent_id || parentId 
+        })
       });
-
       if (res.ok) { onSuccess(); onClose(); }
-      else { alert("Server Error on Save"); }
-    } catch (e) { alert("Save Failed: Check CORS/Network"); } 
+    } catch (e) { console.error(e); } 
     finally { setSubmitting(false); }
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size="600px">
-      <Box className="p-10 lg:p-14 bg-white relative">
-        <ActionIcon variant="light" color="gray" radius="xl" size="xl" onClick={onClose} style={{ position: 'absolute', top: '28px', right: '28px' }}><X size={24} /></ActionIcon>
-        <Stack gap={40}>
-          <Title order={2} fs="italic" className="font-extrabold">{data ? "Edit" : "New"} Section</Title>
-          <Stack gap="xl">
-            <TextInput label="NAME" value={name} onChange={(e) => setName(e.target.value)} size="lg" radius="md" />
-            <NumberInput label="WAIT TIME (SEC)" value={waitDefault} onChange={setWaitDefault} size="lg" radius="md" />
+    <Modal opened={opened} onClose={onClose} centered radius="32px" withCloseButton={false} padding={0} size="lg">
+      <Box className="p-10 bg-white">
+        <Stack gap="xl">
+          <Title order={2} className="font-black italic uppercase">{data ? "Modify Unit" : "Initialize Unit"}</Title>
+          <Stack gap="md">
+            <TextInput label="SECTION NAME" value={name} onChange={(e) => setName(e.target.value)} radius="md" />
+            <NumberInput label="WAIT TIME (SEC)" value={waitDefault} onChange={setWaitDefault} radius="md" />
             {data && (
-              <Paper p={30} radius={32} withBorder bg="blue-50/30">
-                <Stack gap="xl">
-                  <Group gap="xs"><ShieldCheck size={18} className="text-blue-600" /><Text className="text-[11px] font-bold text-blue-600 uppercase">Invitation Protocol</Text></Group>
-                  <Select label="CODE VALIDITY" data={EXPIRE_OPTIONS} value={inviteState.expire} onChange={inviteState.setExpire} radius="md" size="lg" />
+              <Paper p="xl" radius="24px" withBorder bg="blue-50/20">
+                <Stack gap="md">
+                  <Select label="CODE VALIDITY" data={[{value:'30',label:'30m'},{value:'60',label:'1h'},{value:'1440',label:'1d'}]} value={inviteState.expire} onChange={inviteState.setExpire} radius="md" />
                   <Group align="flex-end">
-                    <TextInput value={inviteState.code} placeholder="Code..." readOnly className="flex-1" radius="md" size="lg" />
-                    <ActionIcon onClick={handleGenerateCode} disabled={inviteState.cooldown > 0} loading={generating} variant="filled" color="blue" size="56px" radius="md">
-                      {inviteState.cooldown > 0 ? <Text fw={700} fz="xs">{inviteState.cooldown}s</Text> : <RefreshCw size={24} />}
+                    <TextInput value={inviteState.code} placeholder="Code" readOnly className="flex-1" radius="md" />
+                    <ActionIcon onClick={handleGenerateCode} disabled={inviteState.cooldown > 0} loading={generating} variant="filled" color="blue" size={42} radius="md">
+                      {inviteState.cooldown > 0 ? <Text fw={900} fz={10}>{inviteState.cooldown}</Text> : <RefreshCw size={18} />}
                     </ActionIcon>
                   </Group>
                 </Stack>
               </Paper>
             )}
           </Stack>
-          <Button onClick={handleAction} loading={submitting} fullWidth size="xl" radius="xl" color="blue" h={80} className="font-bold shadow-xl">
-            {data ? "CONFIRM UPDATE" : "CREATE NOW"}
-          </Button>
+          <Button onClick={handleAction} loading={submitting} fullWidth size="xl" radius="xl" color="blue" h={70} className="font-bold shadow-xl">{data ? "EXECUTE CHANGES" : "CREATE NEW SECTION"}</Button>
         </Stack>
       </Box>
     </Modal>
