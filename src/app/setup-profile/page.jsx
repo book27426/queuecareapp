@@ -6,7 +6,7 @@ import {
   Box, Container, Title, Text, TextInput, Button, Stack, Paper,
   Center, Loader, Avatar, FileButton, ActionIcon, Grid, Group, Alert
 } from "@mantine/core";
-import { Camera, User, Phone, Check, ChevronRight, AlertCircle } from "lucide-react";
+import { Camera, User, Phone, ChevronRight, AlertCircle } from "lucide-react";
 
 export default function SetupProfilePage() {
   const router = useRouter();
@@ -21,23 +21,19 @@ export default function SetupProfilePage() {
   const [imagePreview, setImagePreview] = useState(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const ENV_TOKEN = process.env.NEXT_PUBLIC_ACCESS_TOKEN;
 
-  // 1. ระบบตรวจสอบโปรไฟล์ตอนโหลดหน้า
+  // 1. ตรวจสอบสถานะ Profile เดิม
   useEffect(() => {
     const checkProfile = async () => {
-      const token = localStorage.getItem('access_token') || ENV_TOKEN;
+      const token = localStorage.getItem('access_token');
       
       if (!token) {
-        console.warn("⚠️ No token found. Redirecting to login...");
-        return router.push("/");
+        return router.push("/"); // ไม่มี Token ให้เด้งไป Login
       }
 
       try {
-        console.log("🚀 Attempting to fetch staff from:", `${API_URL}/staff`);
-        
         const response = await fetch(`${API_URL}/staff`, {
-          method: "GET",
+          method: "GET", // หรือ POST ตาม Spec ระบบจริง
           headers: { 
             "Authorization": `Bearer ${token}`,
             "Accept": "application/json"
@@ -46,21 +42,21 @@ export default function SetupProfilePage() {
 
         if (response.ok) {
           const result = await response.json();
-          // ถ้ามีข้อมูลครบแล้ว ให้วาร์ปไปหน้าถัดไปทันที
+          // ถ้ามีข้อมูล Profile ครบแล้ว ไม่ต้องตั้งใหม่ ให้ไปหน้าหลักเลย
           if (result.success && result.data?.first_name) {
             return router.push("/facilities");
           }
         }
-        setLoading(false); // โชว์ฟอร์มถ้าไม่มีข้อมูล หรือ Response ไม่ OK
       } catch (err) {
-        // 🚩 นี่คือจุดที่เครื่องพี่แจ้ง Error: เราดักไว้แล้วให้โชว์ฟอร์ม Manual แทน
-        console.error("🚀 API Error (CORS/Network), entering Manual Mode");
-        setLoading(false);
+        console.error("Fetch profile failed:", err);
+        setErrorMsg("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อตรวจสอบสถานะได้");
+      } finally {
+        setLoading(false); 
       }
     };
 
     checkProfile();
-  }, [router, API_URL, ENV_TOKEN]);
+  }, [router, API_URL]);
 
   // 2. ฟังก์ชันจัดการรูปภาพ
   const handleImageChange = (file) => {
@@ -71,13 +67,13 @@ export default function SetupProfilePage() {
     }
   };
 
-  // 3. ฟังก์ชันบันทึกข้อมูล (พร้อมระบบ Bypass)
+  // 3. ฟังก์ชันบันทึกข้อมูล (ระบบจริง ไม่มีข้ามขั้นตอน)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
     
-    const token = localStorage.getItem("access_token") || ENV_TOKEN;
+    const token = localStorage.getItem("access_token");
 
     try {
       const response = await fetch(`${API_URL}/staff`, {
@@ -94,29 +90,28 @@ export default function SetupProfilePage() {
         }),
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && result.success) {
         router.push("/facilities");
       } else {
-        // แม้เซิร์ฟเวอร์จะตอบกลับว่า Error แต่เราจะปล่อยให้ผ่านไปก่อนเพื่อเทส UI หน้าถัดไป
-        console.warn("Server rejected save, but bypassing for UI test...");
-        router.push("/facilities");
+        // แจ้งเตือนตามจริงที่ Server ส่งมา
+        setErrorMsg(result.message || "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (err) {
-      console.log("Submit bypassed due to connection error (CORS)");
-      // วาร์ปไปหน้าถัดไปทันทีเพื่อให้งานเดินหน้าต่อได้
-      router.push("/facilities");
+      console.error("Submit error:", err);
+      setErrorMsg("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network/CORS) ไม่สามารถบันทึกข้อมูลได้");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- จอ Loading ---
   if (loading) {
     return (
       <Center h="100vh" bg="#F8FAFC">
         <Stack align="center" gap="xs">
           <Loader size="xl" variant="dots" color="blue" />
-          <Text fw={700} c="dimmed">กำลังตรวจสอบสถานะเจ้าหน้าที่...</Text>
+          <Text fw={700} c="dimmed">กำลังตรวจสอบข้อมูล...</Text>
         </Stack>
       </Center>
     );
@@ -127,16 +122,21 @@ export default function SetupProfilePage() {
       <Container size="xs">
         <Paper p={{ base: 30, sm: 40 }} radius="32px" withBorder shadow="xl" bg="white">
           <Stack gap="xl">
-            {/* Header */}
             <Stack gap={4} align="center">
               <Box px={12} py={4} bg="#EBF5FF" style={{ borderRadius: 20 }}>
                 <Text size="xs" fw={800} c="blue" tt="uppercase" lts="1px">Staff Identity</Text>
               </Box>
               <Title order={2} fz={28} fw={900} c="#1E293B">ตั้งค่าโปรไฟล์ใหม่</Title>
-              <Text c="dimmed" size="sm">ระบุข้อมูลของคุณเพื่อเริ่มต้นใช้งานระบบ QueueCare</Text>
+              <Text c="dimmed" size="sm">กรุณาระบุข้อมูลจริงเพื่อใช้ในระบบ</Text>
             </Stack>
 
-            {/* 📸 ส่วนอัปโหลดรูป */}
+            {/* Error Alert เมื่อ API พัง */}
+            {errorMsg && (
+              <Alert variant="light" color="red" icon={<AlertCircle size={18} />}>
+                {errorMsg}
+              </Alert>
+            )}
+
             <Center>
               <Box pos="relative">
                 <Avatar
@@ -167,14 +167,13 @@ export default function SetupProfilePage() {
               </Box>
             </Center>
 
-            {/* Form */}
             <form onSubmit={handleSubmit}>
               <Stack gap="md">
                 <Grid gutter="md">
                   <Grid.Col span={6}>
                     <TextInput
                       label="ชื่อจริง"
-                      placeholder="สมชาย"
+                      placeholder="First Name"
                       required
                       size="lg"
                       radius="md"
@@ -185,7 +184,7 @@ export default function SetupProfilePage() {
                   <Grid.Col span={6}>
                     <TextInput
                       label="นามสกุล"
-                      placeholder="ใจดี"
+                      placeholder="Last Name"
                       required
                       size="lg"
                       radius="md"
@@ -219,7 +218,7 @@ export default function SetupProfilePage() {
                   rightSection={<ChevronRight size={20} />}
                   style={{ boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.3)" }}
                 >
-                  บันทึกและดำเนินการต่อ
+                  บันทึกข้อมูลสำเร็จ
                 </Button>
               </Stack>
             </form>
