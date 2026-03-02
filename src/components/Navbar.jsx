@@ -1,234 +1,292 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; 
-import { 
-  Activity, Phone, UserCircle2, LogOut, ShieldCheck, X, Check 
-} from 'lucide-react'; 
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   Group, Stack, Text, Box, Modal, TextInput, Button, Title, 
-  PinInput, ActionIcon, Flex, Avatar, UnstyledButton, Center, Alert, Loader
+  PinInput, ActionIcon, Flex, Alert, Loader, Divider, UnstyledButton, Avatar,
+  Tooltip, Center, Badge
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks'; 
+import { 
+  Phone, X, ShieldCheck, AlertCircle, LogOut, Activity, 
+  Ticket, LayoutDashboard, User as UserIcon, PlusCircle, Save, Check, Camera 
+} from 'lucide-react';
+import { useDisclosure } from '@mantine/hooks';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ✅ นำเข้า Firebase
+// Firebase
 import { auth, googleProvider, signInWithPopup, signOut } from "@/lib/firebase";
-import { GoogleAuthProvider } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { updateProfile } from "firebase/auth";
 
-export const QueueCareLogo = () => (
-  <Group gap="xs" wrap="nowrap" style={{ pointerEvents: 'none' }}>
-    <Box style={{ width: 40, height: 40, backgroundColor: '#2563EB', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Activity size={20} color="white" strokeWidth={2.5} />
-    </Box>
-    <Text span className="font-black" style={{ fontSize: 22, color: '#1E293B', textTransform: 'uppercase' }}>QUEUECARE</Text>
-  </Group>
-);
-
-export default function Navbar({ user }) {
+export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const fileInputRef = useRef(null); 
   const [loginOpened, { open: openLogin, close: closeLogin }] = useDisclosure(false);
   const [profileOpened, { open: openProfile, close: closeProfile }] = useDisclosure(false);
   
-  const [currentUser, setCurrentUser] = useState(user);
-  const [isLoggingIn, setIsLoggingIn] = useState(false); // ✅ ป้องกันกดซ้อน
-  const [loginError, setLoginError] = useState(null);
-  
-  const [loginStep, setLoginStep] = useState('phone');
+  // --- 🔒 States ระบบ Login ---
+  const [loginStep, setLoginStep] = useState('phone'); 
   const [phone, setPhone] = useState('');
   const [otpValue, setOtpValue] = useState('');
-  const [mounted, setMounted] = useState(false);
+  const [cooldown, setCooldown] = useState(0); 
+  const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [otpFromDb, setOtpFromDb] = useState(null); 
+
+  const [isLoading, setIsLoading] = useState(false); // 👈 ตัวนี้ต้องมี
+  const [isVerifying, setIsVerifying] = useState(false); 
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false); 
+
+  // --- 📝 Profile Edit States (Staff) ---
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
+
+  // ✅ 1. ยามเฝ้าประตู: แยก Role Staff/User
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        setCurrentUser({
+          image: fbUser.photoURL,
+          name: fbUser.displayName, // 👈 Firebase จะส่งชื่อที่อัปเดตแล้วมาให้ตรงนี้
+          email: fbUser.email,
+          role: 'staff'
+        });
+      } else {
+        const savedPhone = localStorage.getItem('user_phone');
+        if (savedPhone) {
+          setCurrentUser({ name: savedPhone, image: null, role: 'user' });
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [pathname]);
 
   useEffect(() => {
-    setMounted(true);
-    if (user) setCurrentUser(user);
-  }, [user]);
+    let timer;
+    if (cooldown > 0) timer = setInterval(() => setCooldown((prev) => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
-  // 🏥 ฟังก์ชัน Google Login สำหรับ Staff (แก้ไขเรื่อง Popup และ Bypass)
-  const handleStaffLogin = async () => {
-    if (isLoggingIn) return; // ✅ ป้องกัน Double Click ที่ทำให้ Popup พัง
+  // ✅ 2. ฟังก์ชันแก้ไขโปรไฟล์ Staff
+  const handleImageClick = () => fileInputRef.current?.click();
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewImage(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
 
-    setIsLoggingIn(true);
-    setLoginError(null);
+  const handleUpdateProfile = async () => {
+      setIsUpdating(true);
+      setShowSuccess(false);
+      try {
+        // 1. อัปเดตที่ Database หลังบ้าน (ตามเดิม)
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_STAFF_PROFILE_API}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name: editName, phone_num: editPhone, image: previewImage })
+        });
 
-    try {
-      // 1. เรียก Google Login
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      // 2. 🔑 ดึง JWT Token
-      const token = await result.user.getIdToken();
-      
-      // 3. 💾 เซฟลงเครื่องเพื่อใช้ยิง API จริง
-      localStorage.setItem('access_token', token);
-      
-      console.log("✅ Token saved. Moving to profile setup...");
-      closeLogin();
-      
-      // 4. 🚀 ส่งไปเช็คโปรไฟล์ที่หน้า Setup (ซึ่งเราแก้ให้เข้มงวดแล้ว)
-      router.push('/setup-profile'); 
+        if (res.ok) {
+          // 2. 🎯 [จุดสำคัญ] สั่งให้ Firebase อัปเดตชื่อในโปรไฟล์ที่ถืออยู่ด้วย
+          if (auth.currentUser) {
+            await updateProfile(auth.currentUser, {
+              displayName: editName,
+              photoURL: previewImage // ถ้าพี่จะอัปเดตรูปด้วย
+            });
+          }
 
-    } catch (error) {
-      console.error("Staff Login Error:", error);
-      
-      // ✅ ดักจับ Error Popup ที่คุณเจอ
-      if (error.code === 'auth/popup-closed-by-user') {
-        setLoginError("คุณปิดหน้าต่าง Login เร็วเกินไป กรุณาลองใหม่อีกครั้ง");
-      } else {
-        setLoginError("เกิดข้อผิดพลาด: " + error.message);
+          // 3. อัปเดต State ในเครื่อง
+          setCurrentUser(prev => ({ ...prev, name: editName, image: previewImage }));
+          
+          setShowSuccess(true);
+          setTimeout(() => { setShowSuccess(false); closeProfile(); }, 1500);
+        }
+      } catch (err) { 
+        console.error("Update Error:", err);
+        setError("ไม่สามารถอัปเดตข้อมูลได้"); 
+      } finally { 
+        setIsUpdating(false); 
       }
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  // 🚪 ฟังก์ชัน Logout (ล้างค่าทุกอย่างจริง 100%)
-  const handleLogout = async () => {
+    };
+  // ✅ 3. ฟังก์ชัน Login ฝั่ง User (กู้คืน handleRequestOTP)
+  const handleRequestOTP = async () => {
+    if (phone.length !== 10 || (cooldown > 0 && loginStep === 'phone')) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      await signOut(auth);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_queue_id');
-      setCurrentUser(null);
-      router.push('/');
-      window.location.reload(); // ✅ รีโหลดเพื่อให้ State ทั้งแอปสะอาด
-    } catch (error) {
-      console.error("Logout Error:", error);
-    }
+      const res = await fetch(process.env.NEXT_PUBLIC_USER_API_OTP, {
+        method: 'POST',
+        credentials: "include",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_num: phone })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setOtpFromDb(result.message);
+        setLoginStep('otp');
+        setCooldown(60); 
+      } else {
+        setError(result.message || "ไม่สามารถขอรหัสได้");
+      }
+    } catch (err) { setError("การเชื่อมต่อล้มเหลว"); } 
+    finally { setIsLoading(false); }
   };
 
-  const handleUserLogin = () => {
-    localStorage.setItem('user_queue_id', 'Q-123'); 
+  const handleVerifyOTP = async () => {
+    if (otpValue.length !== 6 || isVerifying) return;
+    setIsVerifying(true);
+    try {
+      const res = await fetch(process.env.NEXT_PUBLIC_STAFF_API_GOOGLE_LOGIN, {
+        method: 'POST',
+        credentials: "include",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_num: phone, otp: otpValue })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        localStorage.setItem('user_phone', phone);
+        handleCloseModal();
+        router.push('/myqueue');
+      } else { setError("รหัส OTP ไม่ถูกต้อง"); }
+    } catch (err) { setError("Verify Error"); } 
+    finally { setIsVerifying(false); }
+  };
+
+  // ✅ 4. ฟังก์ชัน Login ฝั่ง Staff
+  const handleStaffLogin = async () => {
+    setError(null);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const token = await result.user.getIdToken();
+      localStorage.setItem('access_token', token);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_STAFF_PROFILE_API}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      handleCloseModal();
+      if (res.status === 404) router.push('/setup-profile');
+      else router.push('/facilities');
+    } catch (err) { setError("Staff Login Failed"); }
+  };
+
+  // ✅ 5. Logout & กลับหน้าแรก
+  const handleLogout = async () => {
+    await signOut(auth);
+    localStorage.clear();
+    setCurrentUser(null);
+    window.location.href = '/'; // 🏠 ดีดกลับหน้าแรกและโหลดใหม่ชัวร์ที่สุด
+  };
+
+  const handleCloseModal = () => {
     closeLogin();
-    router.push('/myqueue'); 
+    setTimeout(() => { setLoginStep('phone'); setPhone(''); setError(null); setOtpFromDb(null); }, 300);
   };
-
-  if (!mounted) return <nav className="h-20 bg-white border-b border-slate-100" />;
 
   return (
     <>
-      <nav className="h-16 md:h-20 px-4 md:px-20 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
-        <Link href="/" className="no-underline"><QueueCareLogo /></Link>
+      <nav className="h-16 md:h-20 px-4 md:px-20 flex items-center justify-between bg-white/90 backdrop-blur-md border-b sticky top-0 z-50">
+        <Link href="/" style={{ textDecoration: 'none' }}>
+          <Group gap="xs">
+            <Box style={{ width: 38, height: 38, backgroundColor: '#2563EB', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Activity size={20} color="white" strokeWidth={3} />
+            </Box>
+            <Text span fw={900} fz={22} c="#1E293B">QUEUECARE</Text>
+          </Group>
+        </Link>
 
-        <Group gap="md">
-          {currentUser ? (
-            <Group gap="xs">
-              <UnstyledButton onClick={openProfile}>
-                <Group gap="sm" className="bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100 hover:bg-slate-100 transition-colors">
-                  <Avatar src={currentUser.image} color="blue" radius="xl" size="sm">
-                    {!currentUser.image && <UserCircle2 size={20} />}
-                  </Avatar>
-                  <Stack gap={0} visibleFrom="xs">
-                    <Text className="text-[11px] font-bold text-slate-900 uppercase">
-                      {currentUser.first_name || 'Staff'}
-                    </Text>
-                    <Text className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{currentUser.role || 'Officer'}</Text>
-                  </Stack>
-                </Group>
-              </UnstyledButton>
-              <ActionIcon variant="subtle" color="gray" radius="xl" size="lg" onClick={handleLogout}><LogOut size={18} /></ActionIcon>
-            </Group>
-          ) : (
-            <Button onClick={openLogin} radius="xl" color="blue" className="px-8 font-bold shadow-xl">Login</Button>
-          )}
-        </Group>
+        {currentUser ? (
+          <Group gap="sm">
+            {currentUser.role === 'staff' ? (
+              <Button onClick={() => router.push('/facilities')} radius="xl" color="orange" variant="light" fw={700} leftSection={<LayoutDashboard size={16} />}>จัดการหน่วยงาน</Button>
+            ) : (
+              <>
+                {pathname.includes('/myqueue') ? (
+                  <Button onClick={() => router.push('/join')} radius="xl" color="blue" fw={700} leftSection={<PlusCircle size={16} />}>จองคิวเพิ่ม</Button>
+                ) : (pathname.includes('/join') || pathname.includes('/search')) ? (
+                  <Button onClick={() => router.push('/myqueue')} radius="xl" color="blue" variant="light" fw={700} leftSection={<Ticket size={16} />}>คิวของฉัน</Button>
+                ) : null}
+              </>
+            )}
+            <Avatar src={currentUser.image} radius="xl" className="cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all" onClick={currentUser.role === 'staff' ? openProfile : undefined} />
+            <ActionIcon variant="light" color="red" radius="xl" size="lg" onClick={handleLogout}><LogOut size={18} /></ActionIcon>
+          </Group>
+        ) : (
+          <Button onClick={openLogin} radius="xl" color="blue" fw={700}>Login</Button>
+        )}
       </nav>
 
-      {/* Modal เข้าสู่ระบบ */}
-      <Modal opened={loginOpened} onClose={() => { if(!isLoggingIn) closeLogin(); }} centered radius="40px" withCloseButton={false} padding={0} size="440px">
+      {/* 📝 Modal แก้ไขโปรไฟล์ Staff */}
+      <Modal opened={profileOpened} onClose={closeProfile} centered radius="32px" padding="xl" withCloseButton={false}>
+        <Stack gap="xl">
+          <Group justify="space-between">
+            <Title order={3} fw={900}>Staff Profile</Title>
+            <ActionIcon variant="subtle" color="gray" onClick={closeProfile}><X size={20} /></ActionIcon>
+          </Group>
+          <Center>
+            <Box style={{ position: 'relative' }}>
+              <Avatar src={previewImage} size={100} radius="100%" className="border-4 border-slate-100" />
+              <ActionIcon variant="filled" color="blue" radius="xl" style={{ position: 'absolute', bottom: 0, right: 0, border: '3px solid white' }} onClick={handleImageClick}><Camera size={16} /></ActionIcon>
+              <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileChange} />
+            </Box>
+          </Center>
+          <Stack gap="md">
+            <TextInput label="ชื่อ-นามสกุล" value={editName} onChange={(e) => setEditName(e.target.value)} radius="md" size="md" />
+            <TextInput label="เบอร์โทรศัพท์" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} radius="md" size="md" maxLength={10} />
+          </Stack>
+          <Button fullWidth size="lg" radius="xl" color={showSuccess ? "green" : "blue"} onClick={handleUpdateProfile} loading={isUpdating} leftSection={showSuccess ? <Check size={18} /> : <Save size={18} />}>
+            {showSuccess ? "บันทึกสำเร็จ!" : "บันทึกข้อมูล"}
+          </Button>
+        </Stack>
+      </Modal>
+
+      {/* 🚀 Modal: Login Form */}
+      <Modal opened={loginOpened} onClose={handleCloseModal} centered radius="32px" withCloseButton={false} padding={0} size="420px">
         <Box className="p-10 bg-white relative">
-          {!isLoggingIn && (
-            <ActionIcon variant="light" color="gray" radius="xl" onClick={closeLogin} style={{ position: 'absolute', top: 24, right: 24 }}><X size={20} /></ActionIcon>
-          )}
-          
+          <ActionIcon variant="light" color="gray" radius="xl" onClick={handleCloseModal} style={{ position: 'absolute', top: 20, right: 20 }}><X size={20} /></ActionIcon>
           <AnimatePresence mode="wait">
-            <Stack gap="xl">
-              <Stack gap={4}>
-                <Text className="text-blue-600 font-bold text-[10px] uppercase tracking-[0.2em]">Identification</Text>
-                <Title order={2} className="text-2xl font-extrabold text-[#1E293B]">เข้าสู่ระบบ</Title>
-              </Stack>
-
-              {loginError && (
-                <Alert color="red" variant="light" size="xs">
-                  {loginError}
-                </Alert>
-              )}
-
-              {/* ส่วนของ User ปกติ */}
-              {loginStep === 'phone' ? (
-                <Stack gap="md">
-                  <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08X-XXX-XXXX" label="PHONE NUMBER" size="lg" radius="md" />
-                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => setLoginStep('otp')} className="h-16 font-bold shadow-lg">Request OTP</Button>
+            {loginStep === 'phone' ? (
+              <motion.div key="phone" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <Stack gap="xl">
+                  <Stack gap={4}><Title order={2} fw={900}>เข้าสู่ระบบ</Title><Text size="xs" c="dimmed">กรุณากรอกเบอร์โทรศัพท์เพื่อจัดการคิว</Text></Stack>
+                  <TextInput label="PHONE NUMBER" placeholder="08XXXXXXXX" size="lg" radius="md" maxLength={10} leftSection={<Phone size={18} color="#3B82F6" />} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} />
+                  {error && <Alert color="red" variant="light" py="xs" icon={<AlertCircle size={16}/>}><Text size="xs">{error}</Text></Alert>}
+                  <Button fullWidth size="xl" radius="xl" color="blue" h={60} onClick={handleRequestOTP} loading={isLoading} disabled={phone.length !== 10}>รับรหัส OTP</Button>
+                  <Divider label="สำหรับเจ้าหน้าที่" labelPosition="center" />
+                  <UnstyledButton onClick={handleStaffLogin}><Flex justify="center" align="center" gap={10} className="py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"><ShieldCheck size={16} color="#3B82F6" /><Text size="xs" fw={700}>SIGN IN WITH GOOGLE STAFF</Text></Flex></UnstyledButton>
                 </Stack>
-              ) : (
-                <Stack gap="md" align="center">
-                  <PinInput length={6} size="xl" value={otpValue} onChange={setOtpValue} />
-                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleUserLogin} className="h-16 font-bold">Confirm</Button>
-                  <Button variant="subtle" color="gray" size="xs" onClick={() => setLoginStep('phone')}>Back</Button>
-                </Stack>
-              )}
-              
-              <div className="relative py-2">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Or Staff Access</span></div>
-              </div>
-
-              {/* ✅ ปุ่ม Google Staff Login (แบบกันพัง) */}
-              <UnstyledButton onClick={handleStaffLogin} disabled={isLoggingIn}>
-                <Flex justify="center" align="center" gap={10} className={`py-4 rounded-2xl border transition-all ${isLoggingIn ? 'bg-slate-50 border-slate-100' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'}`}>
-                  {isLoggingIn ? (
-                    <Loader size="xs" color="blue" />
-                  ) : (
-                    <>
-                      <img src="https://www.google.com/favicon.ico" width={16} alt="Google" />
-                      <Text className="text-[11px] font-black uppercase text-slate-500">Continue with Google Staff</Text>
-                      <ShieldCheck size={14} className="text-slate-300" />
-                    </>
+              </motion.div>
+            ) : (
+              <motion.div key="otp" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <Stack gap="xl" align="center">
+                  <Stack gap={4} align="center"><Title order={2} fw={900}>ยืนยันรหัส OTP</Title><Text size="xs" c="dimmed">ส่งรหัสไปที่ {phone}</Text></Stack>
+                  <PinInput length={6} size="lg" radius="md" value={otpValue} onChange={setOtpValue} autoFocus />
+                  {otpFromDb && (
+                    <Box px={12} py={6} bg="blue.0" style={{ borderRadius: '8px', border: '1px dashed #3B82F6' }}>
+                      <Text size="xs" fw={800} c="blue.7">DEBUG OTP: {otpFromDb}</Text>
+                    </Box>
                   )}
-                </Flex>
-              </UnstyledButton>
-            </Stack>
+                  {error && <Alert color="red" variant="light" w="100%" py="xs"><Text size="xs" ta="center">{error}</Text></Alert>}
+                  <Stack gap="sm" w="100%">
+                    <Button fullWidth size="xl" radius="xl" color="blue" h={60} onClick={handleVerifyOTP} loading={isVerifying} disabled={otpValue.length !== 6}>ยืนยันรหัส</Button>
+                    <Button variant="subtle" color="gray" size="sm" onClick={handleRequestOTP} disabled={cooldown > 0}>{cooldown > 0 ? `ขอรหัสใหม่ใน (${cooldown}s)` : "ส่งรหัสใหม่อีกครั้ง"}</Button>
+                  </Stack>
+                </Stack>
+              </motion.div>
+            )}
           </AnimatePresence>
         </Box>
       </Modal>
-
-      {/* Modal โปรไฟล์ */}
-      <StaffProfileModal 
-        opened={profileOpened} 
-        onClose={closeProfile} 
-        user={currentUser} 
-        onUpdate={(data) => { setCurrentUser(prev => ({...prev, ...data})); closeProfile(); }} 
-      />
     </>
-  );
-}
-
-// --- Component ย่อย: Staff Profile Modal ---
-function StaffProfileModal({ opened, onClose, user, onUpdate }) {
-  const [firstName, setFirstName] = useState(user?.first_name || '');
-  const [lastName, setLastName] = useState(user?.last_name || '');
-  
-  useEffect(() => { 
-    if (opened) { 
-      setFirstName(user?.first_name || ''); 
-      setLastName(user?.last_name || ''); 
-    } 
-  }, [opened, user]);
-
-  return (
-    <Modal opened={opened} onClose={onClose} centered radius="40px" padding={40} size="500px" withCloseButton={false}>
-      <Stack gap="xl">
-        <Title className="text-2xl font-extrabold text-[#1E293B]">Profile Settings</Title>
-        <Center>
-          <Avatar src={user?.image} size={100} radius="100%" color="blue" />
-        </Center>
-        <Group grow>
-          <TextInput label="FIRST NAME" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          <TextInput label="LAST NAME" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-        </Group>
-        <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => onUpdate({ first_name: firstName, last_name: lastName })}>
-          Update Profile
-        </Button>
-      </Stack>
-    </Modal>
   );
 }
