@@ -1,267 +1,187 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Box, Text, Title, Group, Stack, TextInput, Modal, Select, 
-  SimpleGrid, ScrollArea, Skeleton, ActionIcon, Paper, ThemeIcon, Button, Badge, Flex, Grid, Tabs, Affix, Avatar
+  Box, Text, Title, Group, Stack, TextInput, Modal, 
+  SimpleGrid, ScrollArea, Skeleton, ActionIcon, Paper, Button, Badge, Flex, Grid, Tabs, Avatar, Loader, Center, Alert, FileButton, Divider
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
-  Clock, Layers, ArrowRight, Activity, Settings2, Plus, Pencil, X, RefreshCw, Timer,
-  Users, CheckCircle2, LayoutGrid, ShieldCheck, Search, ChevronRight, Monitor 
+  Plus, Pencil, X, RefreshCw, ArrowRight, Activity, 
+  Users, LayoutGrid, Search, ArrowLeft, Clock, AlertCircle, Save, Camera
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 
-const EXPIRE_OPTIONS = [
-  { value: '30m', label: '30 MINUTES / 30 นาที' },
-  { value: '1h', label: '1 HOUR / 1 ชั่วโมง' },
-  { value: '1d', label: '1 DAY / 1 วัน' },
-  { value: 'never', label: 'NEVER / ไม่มีวันหมดอายุ' },
-];
-
-const MOCK_STAFF = [
-  { id: 1, name: "ดร. ปทุม ใจดี", role: "Dispatcher", station: "Center Terminal", color: "blue" },
-  { id: 2, name: "พยาบาล สมศรี", role: "Operator", station: "Dental Unit (S1)", color: "teal" },
-  { id: 3, name: "นายวิชัย มั่นคง", role: "Operator", station: "General Clinic (S2)", color: "cyan" },
-];
+// แก้ไข: เพิ่ม Fallback URL ตรงๆ เพื่อป้องกันค่า undefined จาก .env
+const API_BASE = process.env.NEXT_PUBLIC_SECTION_CREATE_API || "https://queuecaredev.vercel.app/api/v1/section";
+const API_QUEUE = process.env.NEXT_PUBLIC_QUEUE_API || "https://queuecaredev.vercel.app/api/v1/queue";
 
 export default function FacilityStationPage() {
   const params = useParams();
   const router = useRouter(); 
-  const hospitalId = params.id || 'center';
-  const [loading, setLoading] = useState(true);
+  const hubId = params.id;
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false); 
+  const [mainSection, setMainSection] = useState(null);
+  const [listData, setListData] = useState([]);
+  const [liveQueues, setLiveQueues] = useState([]);
+  const [staffs, setStaffs] = useState([]);
+  const [fetchError, setFetchError] = useState(null);
+
   const [sectionModalOpened, { open: openSectionModal, close: closeSectionModal }] = useDisclosure(false);
   const [staffModalOpened, { open: openStaffModal, close: closeStaffModal }] = useDisclosure(false);
   const [editingSection, setEditingSection] = useState(null);
 
+  // 1. ฟังก์ชันดึงข้อมูลหลัก (เพิ่มการตรวจสอบ URL ก่อนยิง)
+  const fetchData = useCallback(async (isSilent = false) => {
+    // ป้องกันการยิงถ้า URL ไม่ถูกต้อง
+    if (!API_BASE.startsWith('http') || !API_QUEUE.startsWith('http')) {
+      console.error("Invalid API URLs. Please check your .env file.");
+      if (!isSilent) setFetchError("API Configuration Error: URL missing");
+      return;
+    }
+
+    if (!isSilent) setFetchError(null);
+    setIsSyncing(true);
+
+    try {
+      const token = localStorage.getItem('access_token');
+
+      // 🏢 1.1 ดึงข้อมูลหน่วยงาน (GET)
+      const res = await fetch(`${API_BASE}?id=${hubId}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (!res.ok) throw new Error(`Section API: ${res.status}`);
+      const result = await res.json();
+      
+      if (result.success) {
+        setMainSection(result.data.section);
+        setListData(result.data.sub_sections || []);
+        setStaffs(result.data.staffs || []);
+      }
+
+      // 📋 1.2 ดึงรายการคิว (POST ตาม Spec)
+      const qRes = await fetch(API_QUEUE, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!qRes.ok) throw new Error(`Queue API: ${qRes.status}`);
+      const qResult = await qRes.json();
+      
+      if (qResult.data) {
+        setLiveQueues(qResult.data);
+      }
+      
+    } catch (err) {
+      console.error("Fetch Error:", err.message);
+      // แจ้ง Error บน UI ถ้าเป็นการโหลดครั้งแรกหรือกด Refresh เอง
+      if (!isSilent) setFetchError(`Failed to fetch: ${err.message}`);
+    } finally {
+      setInitialLoading(false);
+      setIsSyncing(false);
+    }
+  }, [hubId]);
+
+  // 2. ระบบ Auto-Sync (Polling ทุก 5 วินาที)
   useEffect(() => {
-    setTimeout(() => setLoading(false), 800);
-  }, []);
+    if (!hubId) return;
+    
+    fetchData(); // เรียกครั้งแรก
+    
+    const interval = setInterval(() => {
+      fetchData(true); // Polling เงียบๆ (isSilent = true)
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [fetchData, hubId]);
 
-  const handleEditSection = (e, section) => {
-    e.preventDefault(); 
-    e.stopPropagation();
-    setEditingSection(section);
-    openSectionModal();
-  };
+  if (initialLoading && !mainSection) return <Box p={50}><Skeleton height={600} radius={40} /></Box>;
 
-  if (loading) return <Box p={50}><Skeleton height={600} radius={40} /></Box>;
-
-  const StationsContent = (
-    <Stack gap={40}>
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={4}>
-          <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">Service Control</Text>
-          <Title className="text-3xl lg:text-5xl font-extrabold text-[#1E293B] tracking-tighter italic">Station Control.</Title>
-        </Stack>
-        
-        <Group visibleFrom="sm" gap="md">
-          <Button 
-            variant="filled" color="teal" radius="xl" size="lg" 
-            leftSection={<Monitor size={20} />} 
-            onClick={() => router.push(`/facilities/${hospitalId}/dashboard`)}
-            className="h-14 font-bold shadow-lg shadow-teal-200"
-          >
-            Live Dashboard
-          </Button>
-          <Button 
-            variant="light" color="blue" radius="xl" size="lg" 
-            leftSection={<Users size={20} />} 
-            onClick={openStaffModal} 
-            className="h-14 font-bold"
-          >
-            รายชื่อเจ้าหน้าที่
-          </Button>
-          <Button 
-            onClick={() => { setEditingSection(null); openSectionModal(); }} 
-            size="lg" radius="xl" color="blue" 
-            leftSection={<Plus size={20} />} 
-            className="h-14 px-8 font-bold shadow-xl"
-          >
-            เพิ่มแผนกใหม่
-          </Button>
-        </Group>
-
-        <Group hiddenFrom="sm" gap="sm">
-          <ActionIcon 
-            variant="filled" color="teal" size="56px" radius="xl" 
-            onClick={() => router.push(`/facilities/${hospitalId}/dashboard`)}
-            className="shadow-md"
-          >
-            <Monitor size={24} />
-          </ActionIcon>
-          
-          <ActionIcon 
-            variant="light" color="blue" size="56px" radius="xl" 
-            onClick={openStaffModal}
-            className="shadow-md"
-          >
-            <Users size={24} />
-          </ActionIcon>
-        </Group>
-      </Group>
-
-      <SimpleGrid cols={{ base: 2, sm: 3 }} spacing={20}>
-        {[{l:"NEW QUEUE",v:"14",t:"+12%"},{l:"COMPLETE",v:"10",t:"+5%"},{l:"AVG TIME",v:"18m",t:"-2m"}].map((s,i)=>(
-          <Paper key={i} p={20} radius={32} withBorder className="bg-white border-slate-100 shadow-sm">
-            <Text className="text-[9px] font-bold uppercase text-slate-400 mb-1 truncate">{s.l}</Text>
-            <Group gap={4} align="baseline"><Text className="text-2xl font-black text-[#1E293B]">{s.v}</Text><Badge color="blue" variant="light" size="xs">{s.t}</Badge></Group>
-          </Paper>
-        ))}
-      </SimpleGrid>
-
-      <Stack gap={20}>
-        <Group gap="sm"><LayoutGrid size={18} className="text-blue-600" /><Text className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Active Units</Text></Group>
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={25}>
-          {[{id:'S1',n:'Dental / ทำฟัน',c:'A026',w:'12'},{id:'S2',n:'General / ทั่วไป',c:'B006',w:'28'}].map((sec)=>(
-            <Paper 
-              key={sec.id} 
-              p={24} radius={40} withBorder 
-              className="bg-white border-slate-100 hover:shadow-2xl transition-all group cursor-pointer"
-              onClick={() => router.push(`/facilities/${hospitalId}/${sec.id}`)}
-            >
-              <Flex justify="space-between" align="center" mb="lg">
-                <Title order={4} className="text-lg font-extrabold text-[#1E293B] uppercase">{sec.n}</Title>
-                <ActionIcon 
-                  variant="light" color="blue" radius="xl" size="xl" 
-                  onClick={(e) => handleEditSection(e, sec)}
-                  className="hover:scale-110 active:scale-90 transition-transform"
-                >
-                  <Pencil size={20} />
-                </ActionIcon>
-              </Flex>
-              <Flex align="center" gap="xl">
-                <Box className="w-20 h-20 bg-slate-50 rounded-[28px] flex flex-col items-center justify-center border border-slate-100">
-                  <Text className="text-[7px] font-bold text-slate-400 uppercase">Serving</Text>
-                  <Text className="text-2xl font-black text-blue-600 italic">{sec.c}</Text>
-                </Box>
-                <Stack gap={4} className="flex-1">
-                  <Group justify="space-between" className="border-b border-slate-50 pb-1"><Text className="text-[10px] font-bold text-slate-400">Waitlist</Text><Text className="text-sm font-black text-red-600">{sec.w}</Text></Group>
-                  <Button fullWidth mt={5} radius="xl" color="blue" variant="light" className="h-10 font-bold" rightSection={<ChevronRight size={14} />}>Manage Unit</Button>
-                </Stack>
-              </Flex>
-            </Paper>
-          ))}
-        </SimpleGrid>
-      </Stack>
-    </Stack>
-  );
-
-  const QueueFeedContent = (
-    <Box className="lg:sticky lg:top-32 h-fit">
-      <Paper radius={{ base: 0, lg: 40 }} withBorder className="bg-white border-slate-100 shadow-2xl lg:shadow-blue-500/5 overflow-hidden h-full">
-        <Box p={30} className="bg-slate-50/50 border-b border-slate-100">
-          <Group justify="space-between" mb="md"><Title order={3} className="text-xl font-extrabold text-[#1E293B]">Live Feed</Title><Layers size={22} className="text-blue-600" /></Group>
-          <TextInput placeholder="Search ID..." radius="xl" size="md" leftSection={<Search size={16} />} />
-        </Box>
-        <ScrollArea h={{ base: 'calc(100vh - 420px)', lg: 550 }} p={25}>
-          <Stack gap="md">
-            {[{id:'A027',n:'สมชาย รักดี',e:'15m'},{id:'A028',n:'นภาพร สดใส',e:'20m'}].map((item, i)=>(
-              <Paper key={item.id} p={20} radius={24} withBorder className={`border-slate-50 ${i === 0 ? 'border-blue-600 bg-blue-50/20 shadow-md' : ''}`}>
-                <Flex justify="space-between" align="center">
-                  <Stack gap={0}><Title order={4} className="text-xl font-black text-[#1E293B] italic">{item.id}</Title><Text className="text-[10px] font-bold text-slate-400 uppercase">{item.n}</Text></Stack>
-                  <Badge color="blue" variant="light">{item.e}</Badge>
-                </Flex>
-              </Paper>
-            ))}
-          </Stack>
-        </ScrollArea>
-        <Box p={24} className="bg-white border-t border-slate-50">
-          <Flex justify="center"><Button component={Link} href={`/facilities/${hospitalId}/center`} variant="filled" color="blue" radius="xl" size="lg" w={{ base: '100%', lg: '60%' }} className="h-16 font-bold shadow-xl text-lg" rightSection={<ArrowRight size={20} />}>จัดการคิว</Button></Flex>
-        </Box>
-      </Paper>
-    </Box>
-  );
-
+  // --- 🧱 Render UI ---
+  // (ส่วนที่เหลือของโค้ด UI เหมือนเดิม แต่เพิ่มการดัก Error ที่ Alert)
+  
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      <Navbar user={{ name: "DR. PATHUM", role: "Dispatcher" }} />
-
-      <Affix position={{ bottom: 30, right: 30 }} hiddenFrom="sm" zIndex={200}>
-        <ActionIcon onClick={() => { setEditingSection(null); openSectionModal(); }} size="64px" radius="100%" color="blue" variant="filled" className="shadow-2xl" style={{ border: '4px solid white' }}><Plus size={32} /></ActionIcon>
-      </Affix>
-
+      <Navbar />
       <main className="flex-1 lg:p-10 max-w-[1800px] mx-auto w-full z-10">
-        <Box className="lg:hidden">
-          <Tabs defaultValue="stations" color="blue" variant="pills" radius="xl" p="md">
-            <Tabs.List grow className="bg-white p-1 rounded-full border border-slate-100 mb-6">
-              <Tabs.Tab value="stations" leftSection={<LayoutGrid size={16} />} className="font-bold h-12">Stations</Tabs.Tab>
-              <Tabs.Tab value="feed" leftSection={<Layers size={16} />} className="font-bold h-12">Live Feed</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel value="stations">{StationsContent}</Tabs.Panel>
-            <Tabs.Panel value="feed">{QueueFeedContent}</Tabs.Panel>
-          </Tabs>
-        </Box>
-
-        <Box className="hidden lg:block px-6">
+        <Box className="px-6">
+          {fetchError && (
+            <Alert color="red" variant="light" icon={<AlertCircle size={18}/>} mb="xl" radius="md">
+              {fetchError}. โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือปิด-เปิด npm run dev ใหม่
+            </Alert>
+          )}
+          
           <Grid gutter={50}>
-            <Grid.Col span={8}>{StationsContent}</Grid.Col>
-            <Grid.Col span={4}>{QueueFeedContent}</Grid.Col>
+            {/* Stations Content และ Queue Feed Content ใส่ที่นี่ตามปกติ */}
+            <Grid.Col span={{ base: 12, lg: 8 }}>
+               <Stack gap={40}>
+                 <Title className="text-3xl lg:text-5xl font-black text-[#1E293B] tracking-tighter italic">
+                   {mainSection?.name || "Hub"} <span className="text-blue-600">Control.</span>
+                 </Title>
+                 {/* ...รายการ Units... */}
+                 <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={25}>
+                    {listData.map((sec) => (
+                      <Paper key={sec.id} p={24} radius={40} withBorder className="bg-white hover:shadow-xl transition-all">
+                        <Text fw={800}>{sec.name}</Text>
+                        <Button fullWidth mt="md" radius="xl" variant="light">Open Console</Button>
+                      </Paper>
+                    ))}
+                 </SimpleGrid>
+               </Stack>
+            </Grid.Col>
+            
+            <Grid.Col span={{ base: 12, lg: 4 }} className="hidden lg:block">
+               {/* Queue Feed Content */}
+               <Paper radius={40} withBorder p={30} className="bg-white shadow-2xl">
+                  <Title order={3} mb="xl">Live Feed {isSyncing && <Loader size="xs" ml="xs" />}</Title>
+                  <Stack gap="md">
+                    {liveQueues.map((q) => (
+                      <Paper key={q.id} p="md" withBorder radius="lg">
+                        <Text fw={900} size="xl">{q.number}</Text>
+                        <Text size="xs" c="dimmed">{q.name}</Text>
+                      </Paper>
+                    ))}
+                  </Stack>
+               </Paper>
+            </Grid.Col>
           </Grid>
         </Box>
       </main>
 
-      <SectionManagementModal opened={sectionModalOpened} onClose={closeSectionModal} section={editingSection} />
-      <StaffManagementModal opened={staffModalOpened} onClose={closeStaffModal} />
+      <StaffModal opened={staffModalOpened} onClose={closeStaffModal} staffs={staffs} />
+      <SectionManagementModal opened={sectionModalOpened} onClose={closeSectionModal} hubId={hubId} onSuccess={fetchData} />
     </Box>
   );
 }
 
-
-function StaffManagementModal({ opened, onClose }) {
+// Modal สำหรับแสดงรายชื่อ Staff
+function StaffModal({ opened, onClose, staffs }) {
   return (
-    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size="600px">
-      <Box className="p-10 lg:p-14 bg-white relative overflow-hidden">
-        <ActionIcon variant="light" color="gray" radius="xl" size="xl" onClick={onClose} style={{ position: 'absolute', top: '28px', right: '28px', zIndex: 100 }} className="hover:bg-red-50 hover:text-red-500 transition-colors"><X size={24} /></ActionIcon>
-        <Stack gap={40}>
-          <Stack gap={4}><Text className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Human Resources</Text><Title className="text-3xl font-extrabold text-[#1E293B]">Active Staff List</Title></Stack>
-          <Paper radius={32} withBorder bg="slate-50/50"><ScrollArea h={400} p="xl"><Stack gap="lg">{MOCK_STAFF.map((s)=>(<Paper key={s.id} p="md" radius="24px" withBorder bg="white"><Flex justify="space-between" align="center"><Group gap="md"><Avatar color={s.color} radius="xl">{s.name[0]}</Avatar><Stack gap={0}><Text className="font-bold text-sm">{s.name}</Text><Badge size="xs" variant="outline">{s.role}</Badge></Stack></Group><Text className="text-xs font-black text-blue-600">{s.station}</Text></Flex></Paper>))}</Stack></ScrollArea></Paper>
-          <Button fullWidth size="xl" radius="xl" color="blue" variant="light" className="h-16 font-bold" onClick={onClose}>Close Directory</Button>
-        </Stack>
-      </Box>
-    </Modal>
-  );
-}
-
-function SectionManagementModal({ opened, onClose, section }) {
-  const [name, setName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => { 
-    if (section) { 
-      setName(section.n || section.name || ''); 
-      setInviteCode('DH-8829-X'); 
-    } else { 
-      setName(''); 
-      setInviteCode(''); 
-    } 
-  }, [section, opened]);
-
-  useEffect(() => { let timer; if (cooldown > 0) timer = setInterval(() => setCooldown(p => p - 1), 1000); return () => clearInterval(timer); }, [cooldown]);
-
-  return (
-    <Modal opened={opened} onClose={onClose} centered radius="40px" withCloseButton={false} padding={0} size="600px">
-      <Box className="p-10 lg:p-14 bg-white relative overflow-hidden">
-        <ActionIcon variant="light" color="gray" radius="xl" size="xl" onClick={onClose} style={{ position: 'absolute', top: '28px', right: '28px', zIndex: 100 }} className="hover:bg-red-50 hover:text-red-500 transition-colors"><X size={24} /></ActionIcon>
-        <Stack gap={40}>
-          <Stack gap={4}><Text className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Configuration</Text><Title className="text-3xl font-extrabold text-[#1E293B]">{section ? "Edit Department" : "New Department"}</Title></Stack>
-          <Stack gap="xl">
-            <TextInput label="DEPARTMENT NAME *" value={name || ''} onChange={(e)=>setName(e.target.value)} required radius="md" size="lg" classNames={{ input: "font-bold h-14 border-slate-200" }} />
-            <Paper p={30} radius={32} withBorder bg="slate-50"><Stack gap="xl"><Group gap="md"><ShieldCheck size={20} className="text-blue-600" /><Text className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Invitation Protocol</Text></Group><Group align="flex-end"><TextInput label="INVITE CODE" value={inviteCode} readOnly className="flex-1" radius="md" classNames={{ input: "font-black h-14 bg-white" }} /><ActionIcon onClick={()=>setCooldown(60)} disabled={cooldown > 0} variant="filled" color="blue" size="56px" radius="md">{cooldown > 0 ? <Text size="xs">{cooldown}s</Text> : <RefreshCw size={24} />}</ActionIcon></Group><Select label="EXPIRATION" data={EXPIRE_OPTIONS} defaultValue="1d" radius="md" size="lg" classNames={{ input: "font-bold h-14" }} /></Stack></Paper>
-          </Stack>
-          <Button 
-            fullWidth size="xl" radius="xl" color="blue" 
-            className="h-20 text-lg font-bold shadow-xl" 
-            onClick={onClose} 
-            disabled={!name || (typeof name === 'string' && !name.trim())}
-          >
-            Apply Operational Setup <ArrowRight size={22} className="ml-2" />
-          </Button>
-        </Stack>
-      </Box>
+    <Modal opened={opened} onClose={onClose} centered radius="40px" title="Staff Directory">
+       <ScrollArea h={400}>
+         <Stack gap="md">
+           {staffs.map((s) => (
+             <Paper key={s.id} p="md" withBorder radius="lg">
+               <Group justify="space-between">
+                 <Text fw={800}>{s.first_name} {s.last_name}</Text>
+                 <Badge color="blue">{s.role}</Badge>
+               </Group>
+             </Paper>
+           ))}
+         </Stack>
+       </ScrollArea>
     </Modal>
   );
 }

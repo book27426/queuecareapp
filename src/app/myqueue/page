@@ -1,0 +1,276 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Box, Text, Title, Group, Stack, TextInput, Modal, Select, 
+  SimpleGrid, ScrollArea, Skeleton, ActionIcon, Paper, ThemeIcon, Button, Badge, Flex, Grid, Tabs, Avatar, Loader, FileButton, Divider, Center, Alert
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { 
+  Plus, Pencil, X, RefreshCw, ArrowRight, Activity, 
+  Users, LayoutGrid, Search, ShieldCheck, ArrowLeft, Trash2, Clock, Camera, AlertCircle
+} from 'lucide-react';
+import Navbar from "@/components/Navbar";
+import { useParams, useRouter } from 'next/navigation';
+
+const API_BASE = process.env.NEXT_PUBLIC_SECTION_CREATE_API;
+const API_QUEUE = process.env.NEXT_PUBLIC_QUEUE_API;
+
+export default function FacilityStationPage() {
+  const params = useParams();
+  const router = useRouter(); 
+  const hubId = params.id;
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false); // ✅ เพิ่ม State สำหรับ Polling เงียบๆ
+  const [listData, setListData] = useState([]);
+  const [mainSection, setMainSection] = useState(null);
+  const [liveQueues, setLiveQueues] = useState([]);
+  const [error, setError] = useState(null);
+
+  const [sectionModalOpened, { open: openSectionModal, close: closeSectionModal }] = useDisclosure(false);
+  const [staffModalOpened, { open: openStaffModal, close: closeStaffModal }] = useDisclosure(false);
+  const [editingSection, setEditingSection] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // ✅ 1. แก้ไข fetchData ให้รับพารามิเตอร์ isSilent
+const fetchData = useCallback(async (isSilent = false) => {
+  // ✅ ถ้าเป็นการ Sync เงียบๆ ไม่ต้องเปิด Skeleton
+  if (!isSilent) setLoading(true);
+  else setIsSyncing(true);
+  
+  setError(null);
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    // 🚩 เช็ค Token ก่อนยิง ป้องกันค้างนาน
+    if (!token) {
+      setError("กรุณาเข้าสู่ระบบใหม่");
+      setLoading(false);
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}?id=${hubId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      credentials: 'include'
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      setMainSection(result.data.section);
+      setListData(result.data.sub_sections || []);
+      
+      // ดึงคิวสดแบบ POST ตาม Spec เจ้าหน้าที่
+      const qRes = await fetch(API_QUEUE, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const qResult = await qRes.json();
+      if (qResult.data) setLiveQueues(qResult.data);
+    } else {
+      setError(result.message || "ไม่สามารถดึงข้อมูลได้");
+    }
+  } catch (err) { 
+    setError("Failed to fetch data"); 
+  } finally { 
+    // ✅ มั่นใจว่าปิด Loading เสมอ
+    setLoading(false); 
+    setIsSyncing(false);
+  }
+}, [hubId]);
+
+  useEffect(() => { 
+    if (hubId) {
+      fetchData();
+      const interval = setInterval(() => fetchData(true), 5000); // ✅ ส่ง true เพื่อไม่ให้ Skeleton เด้ง
+      return () => clearInterval(interval);
+    }
+  }, [fetchData, hubId]);
+
+  // ✅ 3. ปรับปรุงการแสดงผล Loading/Error
+  if (loading && !mainSection) {
+    return (
+      <Box p={50}>
+        <Skeleton height={40} width="30%" radius="xl" mb="xl" />
+        <SimpleGrid cols={3} mb={40}><Skeleton height={120} radius={32} /><Skeleton height={120} radius={32} /><Skeleton height={120} radius={32} /></SimpleGrid>
+        <Skeleton height={400} radius={40} />
+      </Box>
+    );
+  }
+
+  // ถ้า Error และไม่มีข้อมูลให้แสดงหน้า Error แทน Skeleton
+  if (error && !mainSection) {
+    return (
+      <Center h="100vh">
+        <Stack align="center">
+          <AlertCircle size={50} color="red" />
+          <Text fw={700} size="xl">{error}</Text>
+          <Button onClick={() => fetchData()} variant="light">ลองใหม่อีกครั้ง</Button>
+        </Stack>
+      </Center>
+    );
+  }
+
+  // --- 🧱 Render Logic ---
+  const StationsContent = (
+    <Stack gap={40}>
+      <Group justify="space-between" align="flex-end">
+        <Stack gap={4}>
+          <Group gap="xs" className="cursor-pointer" onClick={() => router.push('/facilities')}>
+            <ArrowLeft size={14} className="text-blue-600" />
+            <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">Service Hub</Text>
+          </Group>
+          <Title className="text-3xl lg:text-5xl font-black text-[#1E293B] tracking-tighter italic">
+            {mainSection?.name || "Hub"} <span className="text-blue-600">Control.</span>
+          </Title>
+        </Stack>
+        <Group gap="md">
+          {refreshing && <Loader size="sm" variant="dots" />}
+          <Button variant="light" color="blue" radius="xl" size="lg" onClick={openStaffModal} leftSection={<Users size={20}/>} className="h-14 font-bold">Staff List</Button>
+          <Button onClick={() => { setEditingSection(null); openSectionModal(); }} size="lg" radius="xl" color="blue" leftSection={<Plus size={20} />} className="h-14 px-8 font-bold shadow-xl">New Unit</Button>
+        </Group>
+      </Group>
+
+      {/* สถิติ */}
+      <SimpleGrid cols={{ base: 2, sm: 3 }} spacing={20}>
+        <Paper p={20} radius={32} withBorder className="bg-white"><Text size="xs" c="dimmed" fw={700}>Sub-Units</Text><Text size="xl" fw={900}>{listData.length}</Text></Paper>
+        <Paper p={20} radius={32} withBorder className="bg-white">
+          <Text size="xs" c="dimmed" fw={700}>Waiting</Text>
+          <Text size="xl" fw={900} color="red">{liveQueues.filter(q => q.status === 'waiting').length}</Text>
+        </Paper>
+        <Paper p={20} radius={32} withBorder className="bg-white">
+          <Text size="xs" c="dimmed" fw={700}>Status</Text>
+          <Badge variant="dot" color="green" size="lg">{refreshing ? "SYNCING" : "ONLINE"}</Badge>
+        </Paper>
+      </SimpleGrid>
+
+      {/* รายการหน่วยย่อย */}
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={25}>
+        {listData.map((sec)=>(
+          <Paper key={sec.id} p={24} radius={40} withBorder className="bg-white hover:shadow-2xl transition-all cursor-pointer group" onClick={() => router.push(`/facilities/${hubId}/${sec.id}`)}>
+            <Flex justify="space-between" align="center" mb="lg">
+              <Group><Avatar src={sec.image_url} radius="xl" size="md" color="blue" /><Title order={4} className="uppercase font-black">{sec.name}</Title></Group>
+              <ActionIcon variant="light" color="blue" radius="xl" size="xl" onClick={(e) => { e.stopPropagation(); setEditingSection(sec); openSectionModal(); }}><Pencil size={18} /></ActionIcon>
+            </Flex>
+            <Button fullWidth radius="xl" color="blue" variant="light" className="h-10 font-bold" rightSection={<ArrowRight size={14} />}>Open Console</Button>
+          </Paper>
+        ))}
+      </SimpleGrid>
+    </Stack>
+  );
+
+  const QueueFeedContent = (
+    <Paper radius={{ base: 0, lg: 40 }} withBorder className="bg-white shadow-2xl h-full overflow-hidden">
+      <Box p={30} className="bg-slate-50/50 border-b"><Title order={3}>Live Feed</Title></Box>
+      <ScrollArea h={550} p={25}>
+        <Stack gap="md">
+          {liveQueues.filter(q => q.status === 'waiting').length > 0 ? liveQueues.filter(q => q.status === 'waiting').map((item, i)=>(
+            <Paper key={item.id} p={20} radius={24} withBorder className={`border-slate-100 ${i === 0 ? 'border-blue-600 bg-blue-50/5' : ''}`}>
+              <Flex justify="space-between" align="center">
+                <Stack gap={0}><Title order={4} className="italic font-black">{item.number}</Title><Text size="xs" c="dimmed">{item.name}</Text></Stack>
+                <Badge color="blue" variant="light">WAITING</Badge>
+              </Flex>
+            </Paper>
+          )) : <Center py={60}><Text c="dimmed">No active queues</Text></Center>}
+        </Stack>
+      </ScrollArea>
+    </Paper>
+  );
+
+  return (
+    <Box className="min-h-screen bg-[#F8FAFC]">
+      <Navbar />
+      <main className="lg:p-10 max-w-[1800px] mx-auto w-full">
+        <Grid gutter={50} p="md">
+          <Grid.Col span={{ base: 12, lg: 8 }}>{StationsContent}</Grid.Col>
+          <Grid.Col span={{ base: 12, lg: 4 }} className="hidden lg:block">{QueueFeedContent}</Grid.Col>
+        </Grid>
+      </main>
+
+      <SectionManagementModal opened={sectionModalOpened} onClose={closeSectionModal} section={editingSection} hubId={hubId} onSuccess={fetchData} />
+      <StaffManagementModal opened={staffModalOpened} onClose={closeStaffModal} hubId={hubId} />
+    </Box>
+  );
+}
+
+// ✅ ประกาศ Modal แยกออกมาเพื่อให้ Turbopack มองเห็น
+function SectionManagementModal({ opened, onClose, section, hubId, onSuccess }) {
+  const [name, setName] = useState('');
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { 
+    if (opened) { setName(section?.name || ''); setPreview(section?.image_url || ''); }
+  }, [section, opened]);
+
+  const handleAction = async () => {
+    if (!name) return;
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const formData = new FormData();
+      formData.append('name', name);
+      if (file) formData.append('image', file);
+      formData.append('parent_id', hubId);
+
+      const res = await fetch(section ? `${API_BASE}?id=${section.id}` : API_BASE, {
+        method: section ? 'PUT' : 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (res.ok) { onSuccess(); onClose(); }
+    } catch (e) { console.error(e); } 
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="40px" padding="xl" title={<Title order={3}>{section ? "Edit Unit" : "New Unit"}</Title>}>
+      <Stack gap="xl">
+        <Center className="flex-col gap-4">
+          <Avatar src={preview} size={100} radius="xl" color="blue" />
+          <FileButton onChange={(f) => { setFile(f); if(f) setPreview(URL.createObjectURL(f)); }}>
+            {(props) => <Button {...props} variant="light" size="xs">Change Image</Button>}
+          </FileButton>
+        </Center>
+        <TextInput label="NAME" value={name} onChange={(e)=>setName(e.target.value)} required radius="md" />
+        <Button fullWidth size="xl" radius="xl" color="blue" onClick={handleAction} loading={submitting}>Apply Change</Button>
+      </Stack>
+    </Modal>
+  );
+}
+
+function StaffManagementModal({ opened, onClose, hubId }) {
+  const [staffs, setStaffs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (opened) {
+      const load = async () => {
+        setLoading(true);
+        try {
+          const token = localStorage.getItem('access_token');
+          const res = await fetch(`${API_BASE}?id=${hubId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const result = await res.json();
+          if (result.success) setStaffs(result.data.staffs || []);
+        } catch (e) {} finally { setLoading(false); }
+      };
+      load();
+    }
+  }, [opened, hubId]);
+
+  return (
+    <Modal opened={opened} onClose={onClose} centered radius="40px" title={<Title order={3}>Staff Directory</Title>}>
+      <ScrollArea h={400} p="md">
+        <Stack gap="md">
+          {loading ? <Center py={40}><Loader /></Center> : staffs.map((s)=>(
+            <Paper key={s.id} p="md" withBorder radius="xl">
+              <Group justify="space-between"><Text fw={800}>{s.first_name} {s.last_name}</Text><Badge color="blue">{s.role}</Badge></Group>
+            </Paper>
+          ))}
+        </Stack>
+      </ScrollArea>
+    </Modal>
+  );
+}

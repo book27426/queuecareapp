@@ -90,39 +90,43 @@ export default function JoinQueuePage() {
   }, [searchQuery, fetchSections]);
 
   // --- 🎫 2. ฟังก์ชันจองคิว (ตาม API Spec: POST /api/v1/queue) ---
-  const handleCreateQueue = async () => {
-    if (!name || phone.length !== 10) return;
+const handleCreateQueue = async () => {
+    if (!name.trim() || phone.length !== 10) return;
     setStep('processing');
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/queue`, {
-        method: 'POST',
-        credentials: 'include', // 👈 สำคัญ: ส่ง user_token cookie
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          section_id: selectedHospital.id, 
-          name: name, 
-          phone_num: phone 
-        })
-      });
+        const response = await fetch(process.env.NEXT_PUBLIC_QUEUE_API, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                section_id: Number(selectedHospital.id), 
+                name: name.trim(), 
+                phone_num: phone 
+            })
+        });
 
-      const result = await response.json();
+        const result = await response.json();
+        console.log("📥 Result from POST:", result);
 
-      if (result.success) {
-        // บันทึกข้อมูลคิวที่ได้ (id, number, name, status ฯลฯ)
-        setNewQueueData(result.data);
-        setStep('ticket');
-      } else {
-        // กรณีหลังบ้าน Error (เช่น "คุณมีคิวค้างอยู่")
-        setError(result.message || "จองคิวไม่สำเร็จ");
-        setStep('form');
-      }
+        if (result.success && result.data) {
+            // ✅ ดึงข้อมูลจากก้อน data ของการ POST มาใช้เลย
+            const queueInfo = result.data; 
+            
+            setNewQueueData(queueInfo); 
+            
+            // ✨ สั่งเปลี่ยน Step ทันที ข้อมูลจะถูกส่งไปที่ตั๋ว
+            setStep('ticket');
+        } else {
+            setError(result.message || "จองคิวไม่สำเร็จ");
+            setStep('form');
+        }
     } catch (err) {
-      setError("การจองคิวล้มเหลว กรุณาลองใหม่อีกครั้ง");
-      setStep('form');
+        setError("การเชื่อมต่อมีปัญหา");
+        setStep('form');
     }
-  };
+};
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
@@ -233,23 +237,34 @@ export default function JoinQueuePage() {
               <Center py={60}><Stack align="center"><Loader size={50} color="blue" type="bars" /><Text fw={800} c="blue">กำลังออกบัตรคิว...</Text></Stack></Center>
             )}
 
-            {step === 'ticket' && (
-              <motion.div key="ticket" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                <Stack align="center" gap="xl">
-                  <DispenseMachine>
-                    <PaperTicketContent 
-                      queueNumber={newQueueData?.number} 
-                      name={newQueueData?.name} 
-                      hospitalName={selectedHospital?.name} 
-                      status={newQueueData?.status} 
-                    />
-                  </DispenseMachine>
-                  <Button fullWidth size="xl" radius="xl" color="blue" onClick={() => router.push('/myqueue')} fw={900} leftSection={<Ticket size={20} />}>
-                    ดูคิวของฉัน
-                  </Button>
-                </Stack>
-              </motion.div>
-            )}
+{step === 'ticket' && (
+  <motion.div key="ticket" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+    <Stack align="center" gap="xl">
+      {/* 🎰 ตรวจสอบว่ามีข้อมูลจริงไหม ถ้าไม่มีให้หมุนรอก่อน */}
+      {!newQueueData ? (
+        <Center h={200}><Loader color="blue" /></Center>
+      ) : (
+        <DispenseMachine>
+          {/* 🎫 ดึงข้อมูลจาก API มาโชว์บนกระดาษ */}
+          <PaperTicketContent 
+            queueNumber={newQueueData.number || "---"} 
+            name={newQueueData.name || name} 
+            hospitalName={selectedHospital?.name || "หน่วยงาน"} 
+            status={newQueueData.status || "waiting"} 
+          />
+        </DispenseMachine>
+      )}
+      
+      <Button 
+        fullWidth size="xl" radius="xl" color="blue" 
+        onClick={() => router.push('/myqueue')} 
+        fw={900}
+      >
+        ดูคิวของฉัน
+      </Button>
+    </Stack>
+  </motion.div>
+)}
           </AnimatePresence>
         </Box>
       </Modal>
