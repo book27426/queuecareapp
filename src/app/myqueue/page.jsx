@@ -8,18 +8,19 @@ import {
 import Navbar from "@/components/Navbar"; 
 import { 
   Ticket, Clock, Hash, Trash2, AlertCircle, RefreshCw,
-  CheckCircle2, Calendar, ChevronRight, Activity, Building2, User, Phone, MapPin
+  Calendar, ChevronRight, Activity, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MyQueuePage() {
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'inactive'
+  const [activeTab, setActiveTab] = useState('active'); 
   const [queues, setQueues] = useState({ active: [], inactive: [] });
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [error, setError] = useState(null);
 
-const fetchMyQueues = useCallback(async () => {
+  const fetchMyQueues = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -42,7 +43,6 @@ const fetchMyQueues = useCallback(async () => {
       });
 
       const result = await response.json();
-      console.log("📡 ข้อมูลที่ได้มา:", result);
 
       if (result.success || result.succes) {
         const activeList = result.data?.active || [];
@@ -60,12 +60,44 @@ const fetchMyQueues = useCallback(async () => {
         setError(result.message || "ไม่พบข้อมูลคิวของคุณ");
       }
     } catch (err) {
-      console.error("❌ Fetch error:", err);
       setError("ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่ภายหลัง");
     } finally {
       setLoading(false);
     }
   }, [selectedId]);
+
+  const handleCancelQueue = async (queueId) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการยกเลิกคิวนี้?")) return;
+
+    setCancelLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const baseUrl = process.env.NEXT_PUBLIC_CANCEL_QUEUE_API;
+      const url = `${baseUrl}?id=${queueId}`;
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchMyQueues();
+        if (selectedId === queueId) setSelectedId(null);
+      } else {
+        alert(result.message || "ไม่สามารถยกเลิกคิวได้");
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อระบบ");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchMyQueues();
@@ -82,7 +114,6 @@ const fetchMyQueues = useCallback(async () => {
         <Container size="xl">
           <Stack gap={40}>
             
-            {/* 🆕 ปรับ HEADER SECTION ให้อยู่ในแถวเดียวกัน */}
             <Group justify="space-between" align="center" wrap="wrap" className="gap-6">
               <Stack gap={4}>
                 <Text className="tracking-[0.3em] text-blue-600 font-bold text-[10px] uppercase">Live Status</Text>
@@ -91,11 +122,11 @@ const fetchMyQueues = useCallback(async () => {
                 </Title>
               </Stack>
 
-              <Group gap="md" className="w-full lg:w-auto">
+              <Group gap="md">
                 <ActionIcon 
                   variant="light" color="blue" size="xl" radius="xl" 
                   onClick={fetchMyQueues} loading={loading}
-                  className="h-14 w-14" // ✅ ทำให้ปุ่มมีขนาดเท่า SegmentedControl
+                  className="h-14 w-14"
                 >
                   <RefreshCw size={24} />
                 </ActionIcon>
@@ -114,25 +145,23 @@ const fetchMyQueues = useCallback(async () => {
             </Group>
 
             {error && (
-              <Alert color="red" variant="light" radius="md" icon={<AlertCircle size={16} />} title="เกิดข้อผิดพลาด">
+              <Alert color="red" variant="light" radius="md" icon={<AlertCircle size={16} />}>
                 {error}
               </Alert>
             )}
 
             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
               
-              {/* 🆕 🎫 LEFT SIDE: ตั๋วรายละเอียดคิวแบบเน้นๆ ตามแบบ */}
               <Box className="w-full lg:w-[460px] lg:sticky lg:top-32">
                 <AnimatePresence mode="wait">
                   {loading && !selectedData ? (
-                    <Paper p={40} radius={32} withBorder className="h-[450px] flex items-center justify-center bg-white border-slate-100 shadow-lg">
+                    <Paper p={40} radius={32} withBorder className="h-[450px] flex items-center justify-center bg-white">
                       <Loader size="lg" variant="dots" color="blue" />
                     </Paper>
                   ) : selectedData ? (
                     <motion.div key={selectedData.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                      <Paper p={32} radius={32} withBorder className="bg-white border-slate-100 shadow-2xl shadow-blue-500/5 relative overflow-hidden">
+                      <Paper p={32} radius={32} withBorder className="bg-white border-slate-100 shadow-2xl shadow-blue-500/5 overflow-hidden">
                         <Stack gap={32}>
-                          {/* 🆕 ปรับ Header ภายใน Card */}
                           <Group justify="space-between" align="center">
                             <Stack gap={0}>
                               <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SELECTED INSTITUTION</Text>
@@ -140,32 +169,36 @@ const fetchMyQueues = useCallback(async () => {
                                 {selectedData.institution_name || "ชื่อสถาบัน"}
                               </Title>
                             </Stack>
-                            <ThemeIcon size={44} radius="xl" color="blue" variant="light" className="border border-blue-100">
+                            <ThemeIcon size={44} radius="xl" color="blue" variant="light">
                                 <Activity size={20} />
                             </ThemeIcon>
                           </Group>
 
-                          {/* 🆕 ปรับขนาดหมายเลขคิวและ Badge */}
                           <Center className="py-6 border-y border-slate-50">
                              <Stack gap={0} align="center">
                                <Text className="text-[100px] lg:text-[120px] font-black text-[#1E293B] leading-none tracking-tighter italic">
                                  {selectedData.number}
                                </Text>
-                               <Badge size="xl" radius="md" color="blue" variant="filled" className="mt-4 px-6 font-bold">
-                                 {selectedData.status?.toUpperCase() || "PENDING"}
+                               <Badge size="xl" radius="md" color="blue" variant="filled" className="mt-4 px-6 font-bold uppercase">
+                                 {selectedData.status}
                                </Badge>
                              </Stack>
                           </Center>
 
-                          {/* 🆕 ปรับรายการรายละเอียด ด้านล่างตั๋ว */}
                           <Stack gap="xs">
                             <DetailRow label="คิวก่อนหน้า" value={`${selectedData.wait_count || "0"} คิว`} icon={<Hash size={16} />} />
                             <DetailRow label="เวลารอโดยประมาณ" value={`${selectedData.wait_time || "0"} min`} icon={<Clock size={16} />} />
-                            <DetailRow label="เวลาที่คาดว่าจะได้รับบริการ" value={selectedData.start_at || "HH:MM"} icon={<Calendar size={16} />} />
+                            <DetailRow label="เวลาที่คาดหวัง" value={selectedData.start_at || "HH:MM"} icon={<Calendar size={16} />} />
                           </Stack>
 
                           {activeTab === 'active' && (
-                            <Button fullWidth size="xl" radius="xl" color="red" variant="filled" leftSection={<Trash2 size={20} />} className="font-bold h-16 shadow-lg shadow-red-500/10">
+                            <Button 
+                              fullWidth size="xl" radius="xl" color="red" 
+                              leftSection={<Trash2 size={20} />} 
+                              className="font-bold h-16 shadow-lg shadow-red-500/10"
+                              onClick={() => handleCancelQueue(selectedData.id)}
+                              loading={cancelLoading}
+                            >
                               ยกเลิกการจองคิว
                             </Button>
                           )}
@@ -178,7 +211,6 @@ const fetchMyQueues = useCallback(async () => {
                 </AnimatePresence>
               </Box>
 
-              {/* 📋 RIGHT SIDE: รายการคิวใบเล็ก จัดแบบ SimpleGrid */}
               <Box className="flex-1 w-full">
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing={20}>
                   <AnimatePresence mode="popLayout">
@@ -187,10 +219,9 @@ const fetchMyQueues = useCallback(async () => {
                         <Paper 
                           p={24} radius={24} withBorder 
                           onClick={() => setSelectedId(item.id)}
-                          className={`cursor-pointer transition-all ${selectedId === item.id ? 'border-blue-600 bg-white shadow-2xl shadow-blue-500/5' : 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-lg'}`}
+                          className={`cursor-pointer transition-all ${selectedId === item.id ? 'border-blue-600 bg-white shadow-2xl shadow-blue-500/5' : 'border-slate-100 bg-white hover:border-blue-200'}`}
                         >
-                          {/* 🆕 ปรับโครงสร้างภายใน Card ใบเล็ก */}
-                          <Group justify="space-between" wrap="nowrap" gap="md">
+                          <Group justify="space-between" wrap="nowrap">
                             <Group gap="md">
                               <Box className={`w-20 h-20 rounded-3xl flex items-center justify-center ${selectedId === item.id ? 'bg-gray-300' : 'bg-slate-50 border border-slate-100'}`}>
                                  <Text className={`text-4xl font-black italic ${selectedId === item.id ? 'text-white' : 'text-[#1E293B]'}`}>
@@ -198,17 +229,12 @@ const fetchMyQueues = useCallback(async () => {
                                  </Text>
                               </Box>
                               <Stack gap={4}>
-                                <Text className="text-base font-black text-[#1E293B] uppercase truncate max-w-[180px]">
+                                <Text className="text-base font-black text-[#1E293B] uppercase truncate max-w-[150px]">
                                     {item.institution_name || item.name}
                                 </Text>
-                                <Group gap={8}>
-                                    <Text className="text-sm font-bold text-slate-400">
-                                        รอ {item.wait_time || "0"} min
-                                    </Text>
-                                    <Text className="text-sm font-bold text-slate-400">
-                                        ETA: {item.start_at || "HH:MM"}
-                                    </Text>
-                                </Group>
+                                <Text className="text-sm font-bold text-slate-400">
+                                    รอ {item.wait_time || "0"} min
+                                </Text>
                               </Stack>
                             </Group>
                             <ActionIcon variant="light" color="blue" radius="xl" size="lg"><ChevronRight size={18} /></ActionIcon>
@@ -220,7 +246,7 @@ const fetchMyQueues = useCallback(async () => {
                 </SimpleGrid>
 
                 {!loading && queues[activeTab].length === 0 && (
-                   <EmptyState text={activeTab === 'active' ? "คุณยังไม่มีคิวที่กำลังรอนะครับ" : "ไม่มีประวัติการจองคิวในระบบ"} />
+                   <EmptyState text={activeTab === 'active' ? "ยังไม่มีคิวที่รอนะครับ" : "ไม่มีประวัติการจอง"} />
                 )}
               </Box>
             </div>
@@ -231,27 +257,24 @@ const fetchMyQueues = useCallback(async () => {
   );
 }
 
-// --- 🆕 ปรับ Sub-components ---
-
+// ✅ แก้ไข Sub-components: ลบ Backslash ออกจาก Props
 function DetailRow({ label, value, icon }) {
   return (
     <Group justify="space-between" align="center" className="py-4 border-b border-slate-50 last:border-b-0">
       <Group gap={12}>
         <ThemeIcon size={32} radius="lg" variant="light" color="gray" className="text-slate-400 border border-slate-100">
-            {icon}
+          {icon}
         </ThemeIcon>
         <Text className="text-sm font-bold text-[#1E293B]">{label}</Text>
       </Group>
-      <Text className="text-sm font-black text-[#1E293B] bg-slate-50 px-3 py-1 radius-md">
-        {value || "-"}
-      </Text>
+      <Text className="text-sm font-black text-[#1E293B] bg-slate-50 px-3 py-1 rounded-md">{value || "-"}</Text>
     </Group>
   );
 }
 
 function EmptyState({ text }) {
   return (
-    <Paper p={60} radius={32} withBorder className="text-center bg-white border-dashed border-slate-200 w-full h-[350px] flex items-center justify-center border-slate-100">
+    <Paper p={60} radius={32} withBorder className="text-center bg-white border-dashed border-slate-200 w-full h-[350px] flex items-center justify-center">
       <Stack align="center" gap="xs">
         <Building2 size={48} color="#CBD5E1" strokeWidth={1} />
         <Text className="font-bold text-slate-400 text-sm">{text}</Text>
