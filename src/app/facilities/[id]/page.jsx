@@ -66,9 +66,9 @@ export default function FacilityStationPage() {
         setStaffs(result.data.staffs || []);
       }
 
-      // 📋 1.2 ดึงรายการคิว (POST)
+      // 📋 1.2 ดึงรายการคิว (GET)
       const qRes = await fetch(API_QUEUE, {
-        method: 'POST',
+        method: 'GET',
         credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
