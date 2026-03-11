@@ -20,9 +20,6 @@ export const DispenseMachine = ({ children }) => (
     </Box>
 
     {/* ส่วนพื้นที่ให้ตั๋วไหลออกมา (Overflow Hidden เพื่อให้ดูเหมือนออกมาจากช่อง) */}
-    <Box className="relative z-10 -mt-6 overflow-hidden w-full flex justify-center" style={{ height: '340px' }}>
-      {children}
-    </Box>
   </Box>
 );
 
