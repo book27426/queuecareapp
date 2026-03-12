@@ -17,8 +17,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ✅ API Endpoints
-const API_SECTION = process.env.NEXT_PUBLIC_SECTION_CREATE_API;
-const API_INVITE = process.env.NEXT_PUBLIC_SECTION_INVITE_API;
+const API_SECTION = "https://queuecaredev.vercel.app/api/v1/section";
+const API_INVITE = "https://queuecaredev.vercel.app/api/v1/section/invite_code";
 
 export default function FacilityHubPage() {
   const params = useParams();

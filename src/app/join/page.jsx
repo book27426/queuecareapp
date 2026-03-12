@@ -96,7 +96,7 @@ const handleCreateQueue = async () => {
     setError(null);
 
     try {
-        const response = await fetch(process.env.NEXT_PUBLIC_QUEUE_API, {
+        const response = await fetch("https://queuecaredev.vercel.app/api/v1/queue", {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },

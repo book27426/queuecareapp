@@ -14,7 +14,7 @@ import {
 import Navbar from "@/components/Navbar";
 
 const API_BASE = "https://queuecaredev.vercel.app/api/v1/section";
-const API_STAFF = process.env.NEXT_PUBLIC_STAFF_PROFILE_API;
+const API_STAFF = "https://queuecaredev.vercel.app/api/v1/staff";
 
 export default function StaffManagementPage() {
   const router = useRouter();

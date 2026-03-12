@@ -27,7 +27,7 @@ export default function MyQueuePage() {
       const phone = localStorage.getItem('user_phone');
       const token = localStorage.getItem('access_token');
 
-      let url = process.env.NEXT_PUBLIC_QUEUE_API;
+      let url = "https://queuecaredev.vercel.app/api/v1/queue";
       if (phone) {
         const separator = url.includes('?') ? '&' : '?';
         url += `${separator}phone_num=${encodeURIComponent(phone)}`;
@@ -72,7 +72,7 @@ export default function MyQueuePage() {
     setCancelLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const baseUrl = process.env.NEXT_PUBLIC_CANCEL_QUEUE_API;
+      const baseUrl = "https://queuecaredev.vercel.app/api/v1/queue";
       const url = `${baseUrl}?id=${queueId}`;
 
       const response = await fetch(url, {

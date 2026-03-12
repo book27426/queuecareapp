@@ -81,7 +81,7 @@ export default function Navbar() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_USER_API_OTP, {
+      const res = await fetch("https://queuecaredev.vercel.app/api/v1/otp_verify", {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_num: phone })
@@ -107,7 +107,7 @@ export default function Navbar() {
     setIsVerifying(true);
     setError(null);
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_USER_API_VERIFY, { 
+      const res = await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_num: phone, otp: otpValue, otp_ticket: otpTicket })
@@ -132,7 +132,7 @@ export default function Navbar() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_STAFF_PROFILE_API}`, {
+      const res = await fetch(`${"https://queuecaredev.vercel.app/api/v1/staff"}`, {
         method: 'POST', credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` }
       });

@@ -17,7 +17,7 @@ import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API_COUNTER = "https://queuecaredev.vercel.app/api/v1/counter";
-const API_QUEUE = process.env.NEXT_PUBLIC_QUEUE_API || "https://queuecaredev.vercel.app/api/v1/queue";
+const API_QUEUE = "https://queuecaredev.vercel.app/api/v1/queue";
 
 export default function CounterWorkstationPage() {
   const { id, counterId } = useParams();
