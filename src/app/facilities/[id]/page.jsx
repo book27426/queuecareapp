@@ -48,11 +48,9 @@ export default function FacilityHubPage() {
     if (!isSilent) setFetchError(null);
     setIsSyncing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_SECTION}?id=${hubId}`, {
         method: 'GET',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       const result = await res.json();
@@ -232,7 +230,6 @@ function AddUnitModal({ opened, onClose, data, hubId, onSuccess }) {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const isEdit = !!data;
       const url = isEdit ? `${API_SECTION}?id=${data.id}` : API_SECTION;
       const formData = new FormData();
@@ -243,7 +240,6 @@ function AddUnitModal({ opened, onClose, data, hubId, onSuccess }) {
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
       if (res.ok) { onSuccess(); onClose(); }
@@ -255,11 +251,10 @@ function AddUnitModal({ opened, onClose, data, hubId, onSuccess }) {
     if (!data?.id || cooldown > 0) return;
     setGenLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_INVITE}?id=${data.id}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expire_minutes: Number(expireMin) })
       });
       const result = await res.json();

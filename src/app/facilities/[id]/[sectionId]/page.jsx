@@ -37,11 +37,9 @@ export default function CounterWorkstationPage() {
     if (!isSilent) setFetchError(null);
     setIsSyncing(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_COUNTER}?id=${counterId}`, {
         method: 'GET',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
       
@@ -69,11 +67,10 @@ export default function CounterWorkstationPage() {
     const targetStatus = actionType === 'FINISH' ? "complete" : "cancel";
 
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_QUEUE}?id=${currentQueue.id}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: targetStatus, queue_detail: notes })
       });
 

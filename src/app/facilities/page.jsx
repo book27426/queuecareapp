@@ -300,11 +300,10 @@ function StaffManagementModal({ opened, onClose, section }) {
 function JoinSectionModal({ opened, onClose, onSuccess }) {
   const [code, setCode] = useState('');
   const handleJoin = async () => {
-    const token = localStorage.getItem('access_token');
     const res = await fetch(API_STAFF, {
       method: 'PUT',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invite_code: code })
     });
     if (res.ok) { onSuccess(); onClose(); setCode(''); }

@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  Group, Stack, Text, Box, Modal, TextInput, Button, Title, 
+import {
+  Group, Stack, Text, Box, Modal, TextInput, Button, Title,
   PinInput, ActionIcon, Flex, Alert, Divider, UnstyledButton, Avatar,
-  Center, Badge, Menu, FileButton, ThemeIcon 
+  Center, Badge, Menu, FileButton, ThemeIcon
 } from '@mantine/core';
-import { 
-  X, ShieldCheck, AlertCircle, LogOut, Activity, 
+import {
+  X, ShieldCheck, AlertCircle, LogOut, Activity,
   Ticket, LayoutDashboard, User as UserIcon, Save, Check, Camera, ChevronDown,
   ArrowLeft, Smartphone, Lock, PlusCircle
 } from 'lucide-react';
@@ -24,21 +24,21 @@ export default function Navbar() {
   const pathname = usePathname();
   const [loginOpened, { open: openLogin, close: closeLogin }] = useDisclosure(false);
   const [profileOpened, { open: openProfile, close: closeProfile }] = useDisclosure(false);
-  
+
   const requestLock = useRef(false);
   const verifyLock = useRef(false);
   const lastVerifyTime = useRef(0);
-  
-  const [loginStep, setLoginStep] = useState('phone'); 
+
+  const [loginStep, setLoginStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [otpValue, setOtpValue] = useState('');
-  const [otpTicket, setOtpTicket] = useState(null); 
-  const [cooldown, setCooldown] = useState(0); 
+  const [otpTicket, setOtpTicket] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [otpFromDb, setOtpFromDb] = useState(null); 
+  const [otpFromDb, setOtpFromDb] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false); 
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const [editName, setEditName] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
@@ -94,7 +94,7 @@ export default function Navbar() {
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
         setLoginStep('otp');
-        setCooldown(60); 
+        setCooldown(60);
       } else {
         setError(result.message || "ไม่สามารถขอรหัสได้");
       }
@@ -118,7 +118,7 @@ export default function Navbar() {
     setError(null);
 
     try {
-      const res = await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
+      const res = await fetch("https://queuecaredev.vercel.app/api/v1/user", {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -128,11 +128,11 @@ export default function Navbar() {
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
 
-        await signOut(auth); 
-        
+        await signOut(auth);
+
         localStorage.setItem('user_phone', phone);
-        
-        setCurrentUser({ name: phone, image: null, role: 'user' }); 
+
+        setCurrentUser({ name: phone, image: null, role: 'user' });
         handleCloseModal();
         router.push('/myqueue');
       } else {
@@ -153,7 +153,7 @@ export default function Navbar() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
-      
+
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/staff", {
         method: 'POST',
         credentials: 'include',
@@ -165,15 +165,15 @@ export default function Navbar() {
         const responseData = await res.json();
         const staff = responseData.data;
 
-        localStorage.removeItem('user_phone'); 
+        localStorage.removeItem('user_phone');
 
         const fullName = `${staff.first_name} ${staff.last_name}`;
         localStorage.setItem('staff_image', result.user.photoURL);
         localStorage.setItem('staff_name', fullName);
         localStorage.setItem('staff_email', staff.email);
 
-        setCurrentUser({ 
-          image: result.user.photoURL, 
+        setCurrentUser({
+          image: result.user.photoURL,
           name: fullName, // Use DB name instead of Google name if preferred
           role: 'staff',
         });
@@ -199,20 +199,17 @@ export default function Navbar() {
       setCurrentUser(prev => prev ? { ...prev, name: editName } : null);
       setShowSuccess(true);
       setTimeout(() => { setShowSuccess(false); closeProfile(); }, 1500);
-    } catch (err) { setError("ไม่สามารถบันทึกข้อมูลได้"); } 
+    } catch (err) { setError("ไม่สามารถบันทึกข้อมูลได้"); }
     finally { setIsUpdating(false); }
   };
 
   const handleLogout = async () => {
-    await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
+    await fetch("https://queuecaredev.vercel.app/api/v1/user", {
       method: 'DELETE',
-      credentials: 'include' 
+      credentials: 'include'
     });
     await signOut(auth);
-    localStorage.removeItem('staff_image'); 
-    localStorage.removeItem('staff_name'); 
-    localStorage.removeItem('staff_email'); 
-    localStorage.removeItem('user_phone');
+    localStorage.clear();
     sessionStorage.clear();
     setCurrentUser(null);
     window.location.href = '/';
@@ -220,7 +217,7 @@ export default function Navbar() {
 
   const handleCloseModal = () => {
     closeLogin();
-    setTimeout(() => { 
+    setTimeout(() => {
       setLoginStep('phone'); setPhone(''); setError(null); setOtpFromDb(null); setOtpValue(''); setOtpTicket(null);
       verifyLock.current = false; lastVerifyTime.current = 0;
     }, 300);
@@ -254,16 +251,16 @@ export default function Navbar() {
               ) : (
                 <Group gap={8}>
                   {/* ✅ Single Smart Button */}
-                  <Button 
-                    visibleFrom="sm" onClick={() => router.push(isQueuePage ? '/join' : '/myqueue')} 
+                  <Button
+                    visibleFrom="sm" onClick={() => router.push(isQueuePage ? '/join' : '/myqueue')}
                     radius="xl" color="blue" fw={900} size="md" px={24}
                     leftSection={isQueuePage ? <PlusCircle size={18} /> : <Ticket size={18} />}
                     className="shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
                   >
                     {isQueuePage ? "จองคิวเพิ่ม" : "คิวของฉัน"}
                   </Button>
-                  <ActionIcon 
-                    hiddenFrom="sm" onClick={() => router.push(isQueuePage ? '/join' : '/myqueue')} 
+                  <ActionIcon
+                    hiddenFrom="sm" onClick={() => router.push(isQueuePage ? '/join' : '/myqueue')}
                     radius="xl" color="blue" size="xl" variant="filled" className="shadow-lg"
                   >
                     {isQueuePage ? <PlusCircle size={20} /> : <Ticket size={20} />}
@@ -297,9 +294,9 @@ export default function Navbar() {
       </nav>
 
       {/* 🚀 MODAL: Login & Staff & OTP (Wider & Fix Off-screen) */}
-      <Modal 
-        opened={loginOpened} onClose={handleCloseModal} centered 
-        radius="32px" withCloseButton={false} padding={0} 
+      <Modal
+        opened={loginOpened} onClose={handleCloseModal} centered
+        radius="32px" withCloseButton={false} padding={0}
         size="500px"
       >
         <Box className="bg-white relative overflow-hidden min-h-[540px]">
@@ -329,16 +326,16 @@ export default function Navbar() {
                       </Stack>
                     </Stack>
                     <Stack gap="xl">
-                      <TextInput 
-                        label={<Text size="xs" fw={900} c="dimmed" className="tracking-widest mb-1 uppercase">Phone Number</Text>} 
-                        placeholder="08XXXXXXXX" size="xl" radius="xl" maxLength={10} 
-                        value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
+                      <TextInput
+                        label={<Text size="xs" fw={900} c="dimmed" className="tracking-widest mb-1 uppercase">Phone Number</Text>}
+                        placeholder="08XXXXXXXX" size="xl" radius="xl" maxLength={10}
+                        value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                         classNames={{ input: 'bg-slate-50 border-transparent focus:bg-white font-bold h-16 text-center text-lg' }}
                       />
-                      {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18}/>} className="py-2 font-bold">{error}</Alert>}
+                      {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18} />} className="py-2 font-bold">{error}</Alert>}
                       <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg hover:translate-y-[-2px] transition-all">REQUEST OTP</Button>
                     </Stack>
-                    
+
                     {/* ✅ STAFF LOGIN BUTTON: */}
                     <Stack gap="md">
                       <Divider label={<Text size="xs" fw={800} c="dimmed" className="tracking-widest uppercase">Staff Portal</Text>} labelPosition="center" />
@@ -364,16 +361,16 @@ export default function Navbar() {
                     </Stack>
                     <Stack gap="xl" w="100%" align="center">
                       {/* ✅ FIX OFF-SCREEN*/}
-                      <PinInput 
-                        length={6} size="md" radius="md" value={otpValue} onChange={setOtpValue} autoFocus 
-                        classNames={{ input: 'w-10 h-14 xs:w-12 xs:h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-slate-100 focus:border-blue-500 font-black text-2xl shadow-sm' }} 
+                      <PinInput
+                        length={6} size="md" radius="md" value={otpValue} onChange={setOtpValue} autoFocus
+                        classNames={{ input: 'w-10 h-14 xs:w-12 xs:h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-slate-100 focus:border-blue-500 font-black text-2xl shadow-sm' }}
                         gap="xs"
                       />
                       {otpFromDb && <Badge variant="light" color="blue" size="lg" radius="md" className="py-4 font-black tracking-widest border border-blue-100">DEBUG: {otpFromDb}</Badge>}
                       <Stack gap="xl" w="100%" pt={10}>
-                        <Button 
-                          type="button" fullWidth size="xl" radius="xl" color="blue" h={72} 
-                          onClick={(e) => handleVerifyOTP(e)} loading={isVerifying} disabled={isVerifying} 
+                        <Button
+                          type="button" fullWidth size="xl" radius="xl" color="blue" h={72}
+                          onClick={(e) => handleVerifyOTP(e)} loading={isVerifying} disabled={isVerifying}
                           className="shadow-2xl shadow-blue-500/40 font-black italic text-xl"
                         >CONFIRM VERIFY</Button>
                         <Button variant="subtle" color="gray" size="sm" radius="xl" onClick={handleRequestOTP} disabled={cooldown > 0} className="font-bold">
@@ -411,11 +408,11 @@ export default function Navbar() {
           <AnimatePresence>
             {showSuccess && (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                <Alert color="green" icon={<Check size={18}/>} variant="light" radius="xl" className="font-bold border border-green-100 text-green-700 shadow-sm">บันทึกข้อมูลเรียบร้อย!</Alert>
+                <Alert color="green" icon={<Check size={18} />} variant="light" radius="xl" className="font-bold border border-green-100 text-green-700 shadow-sm">บันทึกข้อมูลเรียบร้อย!</Alert>
               </motion.div>
             )}
           </AnimatePresence>
-          <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleUpdateProfile} loading={isUpdating} leftSection={showSuccess ? <Check size={22}/> : <Save size={22}/>} className="shadow-2xl shadow-blue-500/20 font-black italic text-lg hover:translate-y-[-2px] transition-all"> {showSuccess ? "SUCCESS" : "SAVE CHANGES"}</Button>
+          <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleUpdateProfile} loading={isUpdating} leftSection={showSuccess ? <Check size={22} /> : <Save size={22} />} className="shadow-2xl shadow-blue-500/20 font-black italic text-lg hover:translate-y-[-2px] transition-all"> {showSuccess ? "SUCCESS" : "SAVE CHANGES"}</Button>
         </Stack>
       </Modal>
     </>

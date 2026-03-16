@@ -25,7 +25,6 @@ export default function MyQueuePage() {
     setError(null);
     try {
       const phone = localStorage.getItem('user_phone');
-      const token = localStorage.getItem('access_token');
 
       let url = "https://queuecaredev.vercel.app/api/v1/queue";
       if (phone) {
@@ -37,8 +36,7 @@ export default function MyQueuePage() {
         method: 'GET',
         credentials: 'include',
         headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -71,7 +69,6 @@ export default function MyQueuePage() {
 
     setCancelLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const baseUrl = "https://queuecaredev.vercel.app/api/v1/queue";
       const url = `${baseUrl}?id=${queueId}`;
 
@@ -79,8 +76,7 @@ export default function MyQueuePage() {
         method: 'PUT',
         credentials: 'include',
         headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 
