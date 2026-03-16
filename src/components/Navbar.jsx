@@ -80,21 +80,29 @@ export default function Navbar() {
     requestLock.current = true;
     setIsLoading(true);
     setError(null);
+
     try {
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/otp_verify", {
-        method: 'POST', credentials: 'include',
+        method: 'POST',
+        credentials: 'include', // สำคัญ: เพื่อให้รับ Cookie 'ticket' มาเก็บใน Browser
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_num: phone })
       });
+
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
-        setOtpTicket(result.otp_ticket || result.data?.otp_ticket || null);
-        setOtpFromDb(result.message);
+        // ไม่ต้อง setOtpTicket แล้ว เพราะมันอยู่ใน Cookie
         setLoginStep('otp');
         setCooldown(60); 
-      } else { setError(result.message || "ไม่สามารถขอรหัสได้"); }
-    } catch (err) { setError("การเชื่อมต่อล้มเหลว"); } 
-    finally { setIsLoading(false); requestLock.current = false; }
+      } else {
+        setError(result.message || "ไม่สามารถขอรหัสได้");
+      }
+    } catch (err) {
+      setError("การเชื่อมต่อล้มเหลว");
+    } finally {
+      setIsLoading(false);
+      requestLock.current = false;
+    }
   };
 
   const handleVerifyOTP = async (e) => {
@@ -102,49 +110,75 @@ export default function Navbar() {
     const now = Date.now();
     if (now - lastVerifyTime.current < 2000) return;
     if (isVerifying || verifyLock.current || otpValue.length !== 6) return;
+
     verifyLock.current = true;
     lastVerifyTime.current = now;
     setIsVerifying(true);
     setError(null);
+
     try {
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
-        method: 'POST', credentials: 'include',
+        method: 'POST',
+        credentials: 'include', // สำคัญ: เพื่อส่ง Cookie 'ticket' กลับไปให้ Backend เช็ค
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_num: phone, otp: otpValue, otp_ticket: otpTicket })
+        body: JSON.stringify({ phone_num: phone, otp: otpValue })
       });
+
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
+        // ล้างขยะเก่าๆ ออก
         localStorage.removeItem('access_token');
         await signOut(auth); 
+        
+        // เก็บแค่เบอร์ไว้โชว์สวยๆ (Optional)
         localStorage.setItem('user_phone', phone);
-        localStorage.removeItem('guest_token'); 
-        document.cookie = "guest_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        
         setCurrentUser({ name: phone, image: null, role: 'user' }); 
         handleCloseModal();
         router.push('/myqueue');
-      } else { setError(result.message || "รหัส OTP ไม่ถูกต้อง"); verifyLock.current = false; }
-    } catch (err) { setError("เกิดข้อผิดพลาดในการตรวจสอบ"); verifyLock.current = false; } 
-    finally { setIsVerifying(false); }
+      } else {
+        setError(result.message || "รหัส OTP ไม่ถูกต้อง");
+        verifyLock.current = false;
+      }
+    } catch (err) {
+      setError("เกิดข้อผิดพลาดในการตรวจสอบ");
+      verifyLock.current = false;
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleStaffLogin = async () => {
-    setError(null); setIsLoading(true);
+    setError(null);
+    setIsLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
-      const res = await fetch(`${"https://queuecaredev.vercel.app/api/v1/staff"}`, {
-        method: 'POST', credentials: 'include',
+      
+      const res = await fetch("https://queuecaredev.vercel.app/api/v1/staff", {
+        method: 'POST',
+        credentials: 'include', // ให้ Backend เซต Auth Cookie ให้
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
       if (res.ok) {
-        localStorage.setItem('access_token', token);
         localStorage.removeItem('user_phone'); 
-        setCurrentUser({ image: result.user.photoURL, name: result.user.displayName, role: 'staff' }); 
+        setCurrentUser({ 
+          image: result.user.photoURL, 
+          name: result.user.displayName, 
+          role: 'staff' 
+        }); 
         handleCloseModal();
         router.push('/facilities');
-      } else { setError("คุณไม่มีสิทธิ์เข้าถึงส่วนของเจ้าหน้าที่"); await signOut(auth); }
-    } catch (err) { setError("การเข้าสู่ระบบล้มเหลว"); } 
-    finally { setIsLoading(false); }
+      } else {
+        setError("คุณไม่มีสิทธิ์เข้าถึงส่วนของเจ้าหน้าที่");
+        await signOut(auth);
+      }
+    } catch (err) {
+      setError("การเข้าสู่ระบบล้มเหลว");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateProfile = async () => {

@@ -29,7 +29,7 @@ export default function CenterTerminalPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  // ... (Waitlist และ State อื่นๆ เหมือนเดิม) ...
+  //fetch get api/v1/counter
   const [waitlist, setWaitlist] = useState([
     { id: 'A027', name: 'สมชาย รักดี', tel: '081-234-5678', isVerified: true },
     { id: 'A028', name: 'นภาพร สดใส', tel: '089-876-5432', isVerified: false },
@@ -44,6 +44,7 @@ export default function CenterTerminalPage() {
 
   // ... (handleCallNext และ handleFinalize เหมือนเดิม) ...
   const handleCallNext = () => {
+    //fetch put api/v1/queue body 
     if (isAnimating || waitlist.length === 0 || activePatient) return;
     setIsAnimating(true);
     setTargetUnit(null); 
@@ -55,6 +56,7 @@ export default function CenterTerminalPage() {
   };
 
   const handleFinalize = (type) => {
+    //fetch put api/v1/queue body
     if (isAnimating || !activePatient) return;
     setIsAnimating(true);
     setTimeout(() => {

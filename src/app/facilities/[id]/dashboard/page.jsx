@@ -16,6 +16,7 @@ export default function FullScreenSignageDashboard() {
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  //fetch get api/v1/queue?section_id
   const [activeCalls] = useState([
     { id: 'A009', unit: 'Dental Unit', counter: '03' },
     { id: 'A010', unit: 'Center Terminal', counter: '01' },
