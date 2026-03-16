@@ -29,15 +29,11 @@ export default function JoinQueuePage() {
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [step, setStep] = useState('form'); // 'form' | 'processing' | 'ticket'
   
-  // Data for Booking
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [newQueueData, setNewQueueData] = useState(null);
-  
-  // Login Status
   const [isPhoneUser, setIsPhoneUser] = useState(false);
 
-  // ✅ [A] เช็คสถานะ Login และดึงเบอร์โทรมาใส่รอไว้ (Client Side Only)
   useEffect(() => {
     const savedPhone = localStorage.getItem('user_phone');
     if (savedPhone) {

@@ -20,16 +20,16 @@ export default function MyQueuePage() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // 1. FIXED: Removed selectedId from dependency array to prevent infinite loop
   const fetchMyQueues = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const phone = localStorage.getItem('user_phone');
-
       let url = "https://queuecaredev.vercel.app/api/v1/queue";
+      
       if (phone) {
-        const separator = url.includes('?') ? '&' : '?';
-        url += `${separator}phone_num=${encodeURIComponent(phone)}`;
+        url += `?phone_num=${encodeURIComponent(phone)}`;
       }
 
       const response = await fetch(url, {
@@ -39,15 +39,13 @@ export default function MyQueuePage() {
 
       const result = await response.json();
 
-      if (result.success || result.succes) {
+      if (result.success || result.succes) { // Kept 'succes' typo to match your API
         const activeList = result.data?.active || [];
         const inactiveList = result.data?.inactive || [];
 
-        setQueues({
-          active: activeList,
-          inactive: inactiveList
-        });
+        setQueues({ active: activeList, inactive: inactiveList });
 
+        // Auto-select first queue ONLY if nothing is selected yet
         if (activeList.length > 0 && !selectedId) {
           setSelectedId(activeList[0].id);
         }
@@ -59,16 +57,14 @@ export default function MyQueuePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, []); // Empty dependency array is safer here
 
   const handleCancelQueue = async (queueId) => {
     if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการยกเลิกคิวนี้?")) return;
 
     setCancelLoading(true);
     try {
-      const baseUrl = "https://queuecaredev.vercel.app/api/v1/queue";
-      const url = `${baseUrl}?id=${queueId}`;
-
+      const url = `https://queuecaredev.vercel.app/api/v1/queue?id=${queueId}`;
       const response = await fetch(url, {
         method: 'PUT',
         credentials: 'include'
@@ -141,7 +137,6 @@ export default function MyQueuePage() {
             )}
 
             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
-              
               <Box className="w-full lg:w-[460px] lg:sticky lg:top-32">
                 <AnimatePresence mode="wait">
                   {loading && !selectedData ? (
@@ -213,7 +208,7 @@ export default function MyQueuePage() {
                         >
                           <Group justify="space-between" wrap="nowrap">
                             <Group gap="md">
-                              <Box className={`w-20 h-20 rounded-3xl flex items-center justify-center ${selectedId === item.id ? 'bg-gray-300' : 'bg-slate-50 border border-slate-100'}`}>
+                              <Box className={`w-20 h-20 rounded-3xl flex items-center justify-center ${selectedId === item.id ? 'bg-blue-600' : 'bg-slate-50 border border-slate-100'}`}>
                                  <Text className={`text-4xl font-black italic ${selectedId === item.id ? 'text-white' : 'text-[#1E293B]'}`}>
                                     {item.number}
                                  </Text>
@@ -247,7 +242,6 @@ export default function MyQueuePage() {
   );
 }
 
-// ✅ แก้ไข Sub-components: ลบ Backslash ออกจาก Props
 function DetailRow({ label, value, icon }) {
   return (
     <Group justify="space-between" align="center" className="py-4 border-b border-slate-50 last:border-b-0">
