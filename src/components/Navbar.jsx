@@ -45,7 +45,6 @@ export default function Navbar() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // ตรวจสอบหน้าปัจจุบันเพื่อสลับร่างปุ่ม
   const isQueuePage = pathname.includes('/myqueue');
 
   const syncAuth = useCallback(async (fbUser) => {
@@ -84,14 +83,13 @@ export default function Navbar() {
     try {
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/otp_verify", {
         method: 'POST',
-        credentials: 'include', // สำคัญ: เพื่อให้รับ Cookie 'ticket' มาเก็บใน Browser
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_num: phone })
       });
 
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
-        // ไม่ต้อง setOtpTicket แล้ว เพราะมันอยู่ใน Cookie
         setLoginStep('otp');
         setCooldown(60); 
       } else {
@@ -119,18 +117,17 @@ export default function Navbar() {
     try {
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
         method: 'POST',
-        credentials: 'include', // สำคัญ: เพื่อส่ง Cookie 'ticket' กลับไปให้ Backend เช็ค
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_num: phone, otp: otpValue })
       });
 
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
-        // ล้างขยะเก่าๆ ออก
+
         localStorage.removeItem('access_token');
         await signOut(auth); 
         
-        // เก็บแค่เบอร์ไว้โชว์สวยๆ (Optional)
         localStorage.setItem('user_phone', phone);
         
         setCurrentUser({ name: phone, image: null, role: 'user' }); 
@@ -157,7 +154,7 @@ export default function Navbar() {
       
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/staff", {
         method: 'POST',
-        credentials: 'include', // ให้ Backend เซต Auth Cookie ให้
+        credentials: 'include',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -186,7 +183,6 @@ export default function Navbar() {
     setIsUpdating(true);
     try {
       await updateProfile(auth.currentUser, { displayName: editName });
-      // ✅ อัปเดต State ทันทีเพื่อให้ชื่อเปลี่ยนตาม
       setCurrentUser(prev => prev ? { ...prev, name: editName } : null);
       setShowSuccess(true);
       setTimeout(() => { setShowSuccess(false); closeProfile(); }, 1500);
@@ -194,7 +190,11 @@ export default function Navbar() {
     finally { setIsUpdating(false); }
   };
 
-const handleLogout = async () => {
+  const handleLogout = async () => {
+    await fetch("https://queuecaredev.vercel.app/api/v1/logout", { 
+      method: 'DELETE',
+      credentials: 'include' 
+    });
     await signOut(auth);
     localStorage.removeItem('access_token'); 
     localStorage.removeItem('user_phone');
@@ -324,7 +324,7 @@ const handleLogout = async () => {
                       <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg hover:translate-y-[-2px] transition-all">REQUEST OTP</Button>
                     </Stack>
                     
-                    {/* ✅ STAFF LOGIN BUTTON: คืนชีพแล้วครับ */}
+                    {/* ✅ STAFF LOGIN BUTTON: */}
                     <Stack gap="md">
                       <Divider label={<Text size="xs" fw={800} c="dimmed" className="tracking-widest uppercase">Staff Portal</Text>} labelPosition="center" />
                       <UnstyledButton onClick={handleStaffLogin} className="group">
@@ -348,7 +348,7 @@ const handleLogout = async () => {
                       </Stack>
                     </Stack>
                     <Stack gap="xl" w="100%" align="center">
-                      {/* ✅ FIX OFF-SCREEN: ปรับขนาด PinInput ให้เล็กลงในมือถือ (iPhone SE รอดแน่นอน) */}
+                      {/* ✅ FIX OFF-SCREEN*/}
                       <PinInput 
                         length={6} size="md" radius="md" value={otpValue} onChange={setOtpValue} autoFocus 
                         classNames={{ input: 'w-10 h-14 xs:w-12 xs:h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-slate-100 focus:border-blue-500 font-black text-2xl shadow-sm' }} 
