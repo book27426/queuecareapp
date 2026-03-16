@@ -90,41 +90,37 @@ export default function JoinQueuePage() {
 
   // --- 🎫 2. ฟังก์ชันจองคิว (ตาม API Spec: POST /api/v1/queue) ---
 const handleCreateQueue = async () => {
-    if (!name.trim() || phone.length !== 10) return;
-    setStep('processing');
-    setError(null);
+  if (!name.trim() || phone.length !== 10) return;
+  setStep('processing');
+  setError(null);
 
-    try {
-        const response = await fetch("https://queuecaredev.vercel.app/api/v1/queue", {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                section_id: Number(selectedHospital.id), 
-                name: name.trim(), 
-                phone_num: phone 
-            })
-        });
+  try {
+    const response = await fetch("https://queuecaredev.vercel.app/api/v1/queue", {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        section_id: Number(selectedHospital.id), 
+        name: name.trim(), 
+        phone_num: phone 
+      })
+    });
 
-        const result = await response.json();
-        console.log("📥 Result from POST:", result);
+    const result = await response.json();
+    console.log("📥 Result from POST:", result);
 
-        if (result.success && result.data) {
-            // ✅ ดึงข้อมูลจากก้อน data ของการ POST มาใช้เลย
-            const queueInfo = result.data; 
-            
-            setNewQueueData(queueInfo); 
-            
-            // ✨ สั่งเปลี่ยน Step ทันที ข้อมูลจะถูกส่งไปที่ตั๋ว
-            setStep('ticket');
-        } else {
-            setError(result.message || "จองคิวไม่สำเร็จ");
-            setStep('form');
-        }
-    } catch (err) {
-        setError("การเชื่อมต่อมีปัญหา");
-        setStep('form');
+    if (result.success && result.data) {
+      const queueInfo = result.data; 
+      setNewQueueData(queueInfo); 
+      setStep('ticket');
+    } else {
+      setError(result.message || "จองคิวไม่สำเร็จ");
+      setStep('form');
     }
+  } catch (err) {
+    setError("การเชื่อมต่อมีปัญหา");
+    setStep('form');
+  }
 };
 
   return (
