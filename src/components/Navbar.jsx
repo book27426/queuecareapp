@@ -48,12 +48,15 @@ export default function Navbar() {
   const isQueuePage = pathname.includes('/myqueue');
 
   const syncAuth = useCallback(async (fbUser) => {
-    const token = localStorage.getItem('access_token');
+    const image = localStorage.getItem('staff_image');
+    const name = localStorage.getItem('staff_name');
+    const email = localStorage.getItem('staff_email');
     const savedPhone = localStorage.getItem('user_phone');
-    if (fbUser && token) {
-      setCurrentUser({ image: fbUser.photoURL, name: fbUser.displayName || fbUser.email, role: 'staff', email: fbUser.email });
-      setEditName(fbUser.displayName || '');
-      setPreviewImage(fbUser.photoURL);
+    if (fbUser && name) {
+      //display image name email from localStorage but now i dont have image
+      setCurrentUser({ image: image, name: name || email, role: 'staff', email: email });
+      setEditName(name || '');
+      setPreviewImage(image);
     } else if (savedPhone) {
       setCurrentUser({ name: savedPhone, image: null, role: 'user' });
     } else {
@@ -125,7 +128,6 @@ export default function Navbar() {
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
 
-        localStorage.removeItem('access_token');
         await signOut(auth); 
         
         localStorage.setItem('user_phone', phone);
@@ -159,12 +161,23 @@ export default function Navbar() {
       });
 
       if (res.ok) {
+
+        const responseData = await res.json();
+        const staff = responseData.data;
+
         localStorage.removeItem('user_phone'); 
+
+        const fullName = `${staff.first_name} ${staff.last_name}`;
+        localStorage.setItem('staff_image', result.user.photoURL);
+        localStorage.setItem('staff_name', fullName);
+        localStorage.setItem('staff_email', staff.email);
+
         setCurrentUser({ 
           image: result.user.photoURL, 
-          name: result.user.displayName, 
-          role: 'staff' 
-        }); 
+          name: fullName, // Use DB name instead of Google name if preferred
+          role: 'staff',
+        });
+
         handleCloseModal();
         router.push('/facilities');
       } else {
@@ -191,12 +204,14 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
-    await fetch("https://queuecaredev.vercel.app/api/v1/logout", { 
+    await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
       method: 'DELETE',
       credentials: 'include' 
     });
     await signOut(auth);
-    localStorage.removeItem('access_token'); 
+    localStorage.removeItem('staff_image'); 
+    localStorage.removeItem('staff_name'); 
+    localStorage.removeItem('staff_email'); 
     localStorage.removeItem('user_phone');
     sessionStorage.clear();
     setCurrentUser(null);
@@ -375,7 +390,7 @@ export default function Navbar() {
       </Modal>
 
       {/* 👤 Profile Modal - Pretty & Wider */}
-      <Modal opened={profileOpened} onClose={closeProfile} centered radius="32px" title={<Title order={4} fw={900} className="italic text-[#1E293B] pl-2">Manage Profile</Title>} size="500px" padding="xl">
+      <Modal opened={profileOpened} onClose={closeProfile} centered radius="32px" title={<Text component="span" fw={900} fz="xl" className="italic text-[#1E293B] pl-2">Manage Profile</Text>} size="500px" padding="xl">
         <Stack gap={40}>
           <Center>
             <Box className="relative group">

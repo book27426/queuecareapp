@@ -34,12 +34,10 @@ export default function StaffManagementPage() {
   const fetchAllSections = useCallback(async (name = "") => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const url = name ? `${API_BASE}?name=${encodeURIComponent(name)}` : `${API_BASE}?name=`;
       const res = await fetch(url, { 
         method: 'GET',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
       if (result.success) {
@@ -57,11 +55,9 @@ export default function StaffManagementPage() {
   const handleDeleteSection = async (id) => {
     if (!confirm("ลบหน่วยงานนี้?")) return;
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}?id=${id}`, { 
         method: 'DELETE', 
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
       if (res.ok) fetchAllSections();
@@ -154,41 +150,50 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
   const handleAction = async () => {
     if (!name) return;
     setSubmitting(true);
+
     try {
-      const token = localStorage.getItem('access_token');
       const isEdit = !!data;
       const url = isEdit ? `${API_BASE}?id=${data.id}` : API_BASE;
 
-      const formData = new FormData();
-      formData.append('name', name);
-      if (file) formData.append('image', file);
-      // parent_id จะถูกใส่เป็น 1 อัตโนมัติ (หรือตามความเหมาะสมของ HUB)
-      formData.append('parent_id', isEdit ? data.parent_id : 1);
+      // ✅ Use a plain Object, NOT FormData
+      const payload = {
+        name: name,
+        parent_id: isEdit ? Number(data.parent_id) : 1
+      };
 
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(payload) // ✅ Stringifying a plain object works!
       });
-      if (res.ok) { onSuccess(); onClose(); }
-      else {
+
+      if (res.ok) {
+        onSuccess();
+        onClose();
+      } else {
         const err = await res.json();
-        alert(err.message || "Forbidden: คุณไม่มีสิทธิ์จัดการส่วนนี้");
+        alert(err.message || "Error");
       }
-    } catch (e) { alert("Network Error"); } 
-    finally { setSubmitting(false); }
+    } catch (e) {
+      alert("Network Error");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGenerateCode = async () => {
     if (!data?.id || cooldown > 0) return;
     setGenerating(true);
     try {
-      const token = localStorage.getItem('access_token');
       const res = await fetch(`${API_BASE}/invite_code?id=${data.id}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json' // Tell backend to expect JSON
+        },
         body: JSON.stringify({ expire_minutes: Number(expireMin) })
       });
       const result = await res.json();
@@ -251,8 +256,7 @@ function StaffManagementModal({ opened, onClose, section }) {
       const load = async () => {
         setLoading(true);
         try {
-          const token = localStorage.getItem('access_token');
-          const res = await fetch(`${API_BASE}?id=${section.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const res = await fetch(`${API_BASE}?id=${section.id}`);
           const result = await res.json();
           if (result.success) setStaffs(result.data.staffs || []);
         } catch (e) {} finally { setLoading(false); }

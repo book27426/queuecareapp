@@ -13,31 +13,32 @@ import {
 export default function IndexPage() {
   const router = useRouter();
 
-  // ✅ ฟังก์ชันตรวจจับและเตะ Staff ออกเพื่อความเท่าเทียม
-  const handleJoinQueue = useCallback(() => {
-    // 1. เช็คก่อนว่ามี Token หรือ Profile ค้างไหม (ห้ามเพิ่งลบ)
-    const token = localStorage.getItem('access_token');
-    const profile = localStorage.getItem('staff_profile');
-
-    if (token || profile) {
-      // 🧨 NUCLEAR OPTION: กวาดล้างทุกความทรงจำในเบราว์เซอร์
-      localStorage.clear(); 
-      sessionStorage.clear();
-
-      // 🍪 ล้าง Cookies (กรณี Backend แอบฝังไว้)
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+  const handleJoinQueue = useCallback(async () => {
+    try {
+      const res = await fetch("https://queuecaredev.vercel.app/api/v1/me", {
+        method: 'GET',
+        credentials: 'include' // THIS IS KEY: It sends the cookie to the server
       });
 
-      alert("ขออภัยครับเจ้าหน้าที่: ระบบต้องทำการ Logout เพื่อให้ท่านใช้งานในโหมดลูกค้า (Guest) ได้อย่างถูกต้อง");
+      const result = await res.json();
+
+      if (result.role === 'staff')
+      {
+        await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
+          method: 'DELETE',
+          credentials: 'include' 
+        });
+        if (typeof auth !== 'undefined') {
+          const { signOut } = await import('firebase/auth');
+          await signOut(auth);
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+      }
       
-      // 🔄 HARD REDIRECT: บังคับโหลดแอปใหม่ทั้งหมดเพื่อล้าง State ใน Navbar
       window.location.href = '/join';
-    } else {
-      // 🚀 สำหรับลูกค้าทั่วไป (ไม่มีกุญแจ Staff) ไปหน้าจองคิวปกติ
-      router.push('/join');
+    } catch (error) {
+      console.error("Join Queue Transition Error:", error);
     }
   }, [router]);
 
