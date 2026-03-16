@@ -55,8 +55,7 @@ export default function JoinQueuePage() {
 
       const response = await fetch(url, {
         method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
+        credentials: 'include'
       });
 
       const result = await response.json();

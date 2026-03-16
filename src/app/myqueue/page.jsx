@@ -34,10 +34,7 @@ export default function MyQueuePage() {
 
       const response = await fetch(url, {
         method: 'GET',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include'
       });
 
       const result = await response.json();
@@ -74,10 +71,7 @@ export default function MyQueuePage() {
 
       const response = await fetch(url, {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include'
       });
 
       const result = await response.json();
