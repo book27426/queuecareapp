@@ -94,6 +94,7 @@ export default function Navbar() {
       const result = await res.json();
       if (res.ok && (result.success || result.succes)) {
         setLoginStep('otp');
+        setOtpFromDb(result.message);
         setCooldown(60);
       } else {
         setError(result.message || "ไม่สามารถขอรหัสได้");

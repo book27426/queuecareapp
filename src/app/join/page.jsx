@@ -249,28 +249,49 @@ export default function JoinQueuePage() {
             )}
 
             {step === 'ticket' && (
-              <motion.div key="ticket" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                <Stack align="center" gap="xl">
+              <motion.div 
+                key="ticket" 
+                initial={{ scale: 0.9, opacity: 0 }} 
+                animate={{ scale: 1, opacity: 1 }}
+                className="w-full"
+              >
+                <Stack align="center" gap={40}>
                   {!newQueueData ? (
-                    <Center h={200}><Loader color="blue" /></Center>
+                    <Center h={200}>
+                      <Stack align="center">
+                        <Loader color="blue" size="lg" variant="dots" />
+                        <Text fw={800} c="blue" size="xs" tt="uppercase" italic>Printing Ticket...</Text>
+                      </Stack>
+                    </Center>
                   ) : (
                     <DispenseMachine>
                       <PaperTicketContent 
                         queueNumber={newQueueData.number || "---"} 
                         name={newQueueData.name || name} 
-                        hospitalName={selectedHospital?.name || "หน่วยงาน"} 
+                        hospitalName={selectedHospital?.name || "QueueCare Clinic"} 
                         status={newQueueData.status || "waiting"} 
                       />
                     </DispenseMachine>
                   )}
                   
-                  <Button 
-                    fullWidth size="xl" radius="xl" color="blue" 
-                    onClick={() => router.push('/myqueue')} 
-                    fw={900}
+                  <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    transition={{ delay: 1.5 }} // ให้ปุ่มขึ้นตามหลังกระดาษนิดนึง
+                    className="w-full px-6"
                   >
-                    ดูคิวของฉัน
-                  </Button>
+                    <Button 
+                      fullWidth 
+                      size="xl" 
+                      radius="xl" 
+                      color="blue" 
+                      h={74}
+                      onClick={() => router.push('/myqueue')} 
+                      className="font-black italic shadow-2xl shadow-blue-500/20 active:scale-95 transition-all text-lg"
+                    >
+                      ดูคิวของฉัน
+                    </Button>
+                  </motion.div>
                 </Stack>
               </motion.div>
             )}

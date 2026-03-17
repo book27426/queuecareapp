@@ -268,13 +268,18 @@ function StaffManagementModal({ opened, onClose, section }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (opened && section) {
+    if (opened && section?.id) {
       const loadStaff = async () => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_BASE}?id=${section.id}`);
+          const res = await fetch(`${API_STAFF}?id=${section.id}`, {
+            method: 'GET',
+            credentials: 'include',
+          });
+
           const result = await res.json();
-          if (result.success) setStaffs(result.data.staffs || []);
+
+          if (result.success) setStaffs(result.data || []);
         } catch (e) { console.error(e); } 
         finally { setLoading(false); }
       };

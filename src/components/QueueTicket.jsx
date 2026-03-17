@@ -1,10 +1,9 @@
 import React from 'react';
 import { Box } from '@mantine/core';
-import { motion } from 'framer-motion'; // ต้องมีตัวนี้เพื่อให้มันไหลออกมา
+import { motion } from 'framer-motion';
 
-// ส่วนที่ 1: เครื่องจ่ายตั๋ว (เพิ่ม children เพื่อให้ตั๋วไปโผล่ข้างในได้)
 export const DispenseMachine = ({ children }) => (
-  <Box className="relative flex flex-col items-center">
+  <Box className="relative flex flex-col items-center w-full overflow-visible">
     {/* ส่วนหัวเครื่อง */}
     <Box className="relative z-30">
       <svg width="420" height="100" viewBox="0 0 500 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-2xl">
@@ -19,23 +18,28 @@ export const DispenseMachine = ({ children }) => (
       </svg>
     </Box>
 
-    {/* ส่วนพื้นที่ให้ตั๋วไหลออกมา (Overflow Hidden เพื่อให้ดูเหมือนออกมาจากช่อง) */}
+    {/* ✅ เพิ่มช่องนี้เข้าไป: เพื่อให้ตั๋วไหลออกมาจากเครื่องพิมพ์ */}
+    <Box 
+      className="relative z-20 w-full flex justify-center" 
+      style={{ marginTop: '-20px', overflow: 'visible' }}
+    >
+      {children}
+    </Box>
   </Box>
 );
 
-// ส่วนที่ 2: ใบตั๋ว (เพิ่ม motion.div เพื่อให้มันเลื่อนลงมา)
 export const PaperTicketContent = ({ queueNumber, hospitalName }) => (
   <motion.div 
-    initial={{ y: -300 }} // เริ่มต้นจากข้างบน (ซ่อนอยู่ในเครื่อง)
-    animate={{ y: 0 }}    // เลื่อนลงมาข้างล่าง
+    initial={{ y: -250, opacity: 0 }} // เริ่มจากข้างบน
+    animate={{ y: 0, opacity: 1 }}    // ไหลลงมา
     transition={{ 
       type: "spring", 
-      stiffness: 50, 
+      stiffness: 60, 
       damping: 15,
-      duration: 1.5 
+      delay: 0.5 
     }}
   >
-    <svg width="400" height="320" viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-xl">
+    <svg width="380" height="320" viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-xl">
       <path 
         d="M75 0H425V320L400 300L375 320L350 300L325 320L300 300L275 320L250 300L225 320L200 300L175 320L150 300L125 320L100 300L75 320V0Z" 
         fill="#FFFFFF" 
@@ -43,10 +47,8 @@ export const PaperTicketContent = ({ queueNumber, hospitalName }) => (
         strokeWidth="1" 
       />
       <text x="250" y="80" textAnchor="middle" fontWeight="900" style={{ fontSize: '18px', fill: '#94A3B8', textTransform: 'uppercase', fontFamily: 'sans-serif' }}>คิวของคุณคือ</text>
-      <text x="250" y="115" textAnchor="middle" fontWeight="900" style={{ fontSize: '22px', fill: '#3B82F6', fontFamily: 'sans-serif' }}>{hospitalName}</text>
+      <text x="250" y="115" textAnchor="middle" fontWeight="900" style={{ fontSize: '26px', fill: '#3B82F6', fontFamily: 'sans-serif' }}>{hospitalName}</text>
       <text x="250" y="240" textAnchor="middle" fontWeight="900" className="italic" style={{ fontSize: '120px', fill: '#1E293B', letterSpacing: '-0.05em', fontFamily: 'sans-serif' }}>{queueNumber}</text>
-      
-      {/* เส้นประรอยปรุ */}
       <line x1="100" y1="280" x2="400" y2="280" stroke="#E5E7EB" strokeWidth="2" strokeDasharray="8 8" />
     </svg>
   </motion.div>

@@ -139,8 +139,10 @@ export default function MyQueuePage() {
       const result = await response.json();
 
       if (result.success) {
+        if (selectedId === queueId) {
+          setSelectedId(null);
+        }
         await fetchMyQueues();
-        if (selectedId === queueId) setSelectedId(null);
       } else {
         alert(result.message || "ไม่สามารถยกเลิกคิวได้");
       }
@@ -153,12 +155,19 @@ export default function MyQueuePage() {
 
   useEffect(() => {
     const currentList = queues[activeTab] || [];
-    if (currentList.length > 0) {
-      setSelectedId(currentList[0].id);
-    } else {
-      setSelectedId(null);
+    
+    // Check if our current selection is still valid in the current tab
+    const isSelectedStillInList = currentList.some(q => q.id === selectedId);
+
+    if (!isSelectedStillInList) {
+      if (currentList.length > 0) {
+        setSelectedId(currentList[0].id);
+      } else {
+        setSelectedId(null);
+      }
     }
-  }, [activeTab, queues]); // <--- Added queues here
+    // MUST include all three, and they must exist in the component scope
+  }, [activeTab, queues, selectedId]);
 
   // ✅ Add this to trigger the initial data fetch
   useEffect(() => {
@@ -227,7 +236,7 @@ export default function MyQueuePage() {
                             <Stack gap={0}>
                               <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SELECTED INSTITUTION</Text>
                               <Title order={2} className="text-2xl font-black text-[#1E293B] uppercase mt-1">
-                                {selectedData.institution_name || "ชื่อสถาบัน"}
+                                {selectedData.section_id || "ชื่อสถาบัน"}
                               </Title>
                             </Stack>
                             <ThemeIcon size={44} radius="xl" color="blue" variant="light">
