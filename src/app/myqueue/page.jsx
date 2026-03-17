@@ -12,6 +12,76 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const calculateStartTime = (minutes) => {
+  if (!minutes || minutes <= 0) return "ตอนนี้"; // Show "Now" if wait is 0
+  
+  const now = new Date();
+  const futureDate = new Date(now.getTime() + minutes * 60000);
+  
+  const timeStr = futureDate.toLocaleTimeString('th-TH', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  });
+
+  return `${timeStr} น.`;
+};
+
+const calculateDuartion = (start, end) => {
+  if (!start || !end) return "-";
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const diffInMs = endDate - startDate;
+  const diffInMins = Math.floor(diffInMs / 60000);
+  
+  return diffInMins > 0 ? `${diffInMins} นาที` : "ไม่กี่นาที";
+};
+
+const formatTime = (dateStr) => {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleTimeString('th-TH', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  }) + " น.";
+};
+
+const formatFullDateTime = (dateStr) => {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  
+  // Format: DD/MM/YYYY
+  const dmy = date.toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+
+  // Format: HH:MM น.
+  const time = date.toLocaleTimeString('th-TH', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  return `${dmy} | ${time} น.`;
+};
+
+const getStatusLabel = (status) => {
+  const mapping = {
+    'complete': 'เสร็จสิ้น',
+    'transfer': 'ส่งต่อ',
+    'cancel': 'ยกเลิก',
+    'no_show': 'ไม่มา'
+  };
+  return mapping[status];
+};
+
+const capitalize = (str) => {
+  if (!str) return "-";
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 export default function MyQueuePage() {
   const [activeTab, setActiveTab] = useState('active'); 
   const [queues, setQueues] = useState({ active: [], inactive: [] });
@@ -45,10 +115,6 @@ export default function MyQueuePage() {
 
         setQueues({ active: activeList, inactive: inactiveList });
 
-        // Auto-select first queue ONLY if nothing is selected yet
-        if (activeList.length > 0 && !selectedId) {
-          setSelectedId(activeList[0].id);
-        }
       } else {
         setError(result.message || "ไม่พบข้อมูลคิวของคุณ");
       }
@@ -85,6 +151,16 @@ export default function MyQueuePage() {
     }
   };
 
+  useEffect(() => {
+    const currentList = queues[activeTab] || [];
+    if (currentList.length > 0) {
+      setSelectedId(currentList[0].id);
+    } else {
+      setSelectedId(null);
+    }
+  }, [activeTab, queues]); // <--- Added queues here
+
+  // ✅ Add this to trigger the initial data fetch
   useEffect(() => {
     fetchMyQueues();
   }, [fetchMyQueues]);
@@ -171,9 +247,31 @@ export default function MyQueuePage() {
                           </Center>
 
                           <Stack gap="xs">
-                            <DetailRow label="คิวก่อนหน้า" value={`${selectedData.wait_count || "0"} คิว`} icon={<Hash size={16} />} />
-                            <DetailRow label="เวลารอโดยประมาณ" value={`${selectedData.wait_time || "0"} min`} icon={<Clock size={16} />} />
-                            <DetailRow label="เวลาที่คาดหวัง" value={selectedData.start_at || "HH:MM"} icon={<Calendar size={16} />} />
+                            {activeTab === 'active' ? (
+                              <>
+                                <DetailRow label="คิวก่อนหน้า" value={`${selectedData.people_ahead || "0"} คิว`} icon={<Hash size={16} />} />
+                                <DetailRow label="เวลารอโดยประมาณ" value={`${selectedData.predicted_wait_minutes || "0"} min`} icon={<Clock size={16} />} />
+                                <DetailRow label="เวลาที่คาดหวัง" value={calculateStartTime(selectedData.predicted_wait_minutes) || "HH:MM"} icon={<Calendar size={16} />} />
+                              </>
+                            ) : (
+                              <>
+                                <DetailRow 
+                                  label="เวลารอ" 
+                                  value={calculateDuartion(selectedData.created_at, selectedData.start_at)} 
+                                  icon={<Clock size={16} />} 
+                                />
+                                <DetailRow 
+                                  label="เริ่มจอง" 
+                                  value={formatFullDateTime(selectedData.created_at)} 
+                                  icon={<Calendar size={16} />} 
+                                />
+                                <DetailRow 
+                                  label={getStatusLabel(selectedData.status)}
+                                  value={formatFullDateTime(selectedData.end_at)} 
+                                  icon={<Calendar size={16} />} 
+                                />
+                              </>
+                            )}
                           </Stack>
 
                           {activeTab === 'active' && (
@@ -217,9 +315,17 @@ export default function MyQueuePage() {
                                 <Text className="text-base font-black text-[#1E293B] uppercase truncate max-w-[150px]">
                                     {item.institution_name || item.name}
                                 </Text>
-                                <Text className="text-sm font-bold text-slate-400">
-                                    รอ {item.wait_time || "0"} min
-                                </Text>
+                                <Group gap={6}>
+                                  {activeTab === 'active' ? (
+                                    <Text className="text-sm font-bold text-slate-400">
+                                      ประมาณ {calculateStartTime(item.predicted_wait_minutes)}
+                                    </Text>
+                                  ) : (
+                                    <Text className="text-sm font-bold text-slate-400">
+                                      {capitalize(item.status)} เมื่อ {formatFullDateTime(item.end_at)}
+                                    </Text>
+                                  )}
+                                </Group>
                               </Stack>
                             </Group>
                             <ActionIcon variant="light" color="blue" radius="xl" size="lg"><ChevronRight size={18} /></ActionIcon>

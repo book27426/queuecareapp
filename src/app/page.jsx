@@ -3,11 +3,11 @@
 import React, { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  ArrowRight, Ticket, Clock, ShieldCheck, Globe, Activity 
+  ArrowRight, Ticket, Clock, ShieldCheck, Globe 
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
 import { 
-  Box, Text, Stack, Group, Title, Container, Button, ThemeIcon, SimpleGrid 
+  Box, Text, Stack, Title, Container, Button, ThemeIcon, SimpleGrid 
 } from '@mantine/core';
 
 export default function IndexPage() {
@@ -15,23 +15,27 @@ export default function IndexPage() {
 
   const handleJoinQueue = useCallback(async () => {
     try {
+      // Check current user role to prevent staff from entering patient flow
       const res = await fetch("https://queuecaredev.vercel.app/api/v1/me", {
         method: 'GET',
-        credentials: 'include' // THIS IS KEY: It sends the cookie to the server
+        credentials: 'include'
       });
 
       const result = await res.json();
 
-      if (result.role === 'staff')
-      {
+      if (result.role === 'staff') {
+        // Clear staff session before redirecting to patient join flow
         await fetch("https://queuecaredev.vercel.app/api/v1/user", { 
           method: 'DELETE',
           credentials: 'include' 
         });
+
+        // Handle Firebase cleanup if auth is present
         if (typeof auth !== 'undefined') {
           const { signOut } = await import('firebase/auth');
           await signOut(auth);
         }
+
         localStorage.clear();
         sessionStorage.clear();
       }
@@ -39,19 +43,21 @@ export default function IndexPage() {
       window.location.href = '/join';
     } catch (error) {
       console.error("Join Queue Transition Error:", error);
+      window.location.href = '/join'; // Fallback redirect
     }
-  }, [router]);
+  }, []);
 
   return (
     <Box className="min-h-screen bg-[#FDFDFD] flex flex-col antialiased overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-      {/* ส่ง user={null} เพื่อให้ Navbar เช็คสถานะจาก localStorage เองใหม่หลัง Refresh */}
       <Navbar user={null} /> 
 
       <main className="flex-1 z-10">
         {/* SECTION 1: HERO */}
         <Box className="relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-[65vh] bg-[#F1F5F9] -z-10" 
-               style={{ borderBottomLeftRadius: '10% 100%', borderBottomRightRadius: '10% 100%' }} />
+          <div 
+            className="absolute top-0 left-0 right-0 h-[65vh] bg-[#F1F5F9] -z-10" 
+            style={{ borderBottomLeftRadius: '10% 100%', borderBottomRightRadius: '10% 100%' }} 
+          />
           
           <Container size="lg" className="pt-16 pb-24 md:py-32">
             <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
@@ -83,7 +89,8 @@ export default function IndexPage() {
                     variant="white" size="xl" radius="md" 
                     onClick={() => router.push(`/myqueue`)}
                     className="h-16 md:h-20 font-bold text-[#1E293B] border border-slate-200 shadow-sm sm:w-auto hover:bg-slate-50"
-                    leftSection={<Ticket size={24} className="text-blue-600" />}>
+                    leftSection={<Ticket size={24} className="text-blue-600" />}
+                  >
                     คิวของฉัน
                   </Button>
                 </div>
@@ -93,7 +100,8 @@ export default function IndexPage() {
                 <Box className="relative w-full max-w-[540px] aspect-[4/3] rounded-[40px] overflow-hidden bg-white shadow-2xl border-[12px] border-white">
                   <img 
                     src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1000" 
-                    alt="Clinic" className="w-full h-full object-cover"
+                    alt="Clinic Interior" 
+                    className="w-full h-full object-cover"
                   />
                   <Box className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent" />
                 </Box>
@@ -115,9 +123,21 @@ export default function IndexPage() {
             </Stack>
             
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing={50}>
-              <FeatureCard icon={<Clock size={32} />} title="Time Precision" desc="Accurate wait estimates based on real workstation data." />
-              <FeatureCard icon={<ShieldCheck size={32} />} title="Verified Security" desc="Data is protected and verified with certified institutions." />
-              <FeatureCard icon={<Globe size={32} />} title="Universal Access" desc="Connect to any facility in our network from any device." />
+              <FeatureCard 
+                icon={<Clock size={32} />} 
+                title="Time Precision" 
+                desc="Accurate wait estimates based on real workstation data." 
+              />
+              <FeatureCard 
+                icon={<ShieldCheck size={32} />} 
+                title="Verified Security" 
+                desc="Data is protected and verified with certified institutions." 
+              />
+              <FeatureCard 
+                icon={<Globe size={32} />} 
+                title="Universal Access" 
+                desc="Connect to any facility in our network from any device." 
+              />
             </SimpleGrid>
           </Container>
         </div>
@@ -135,8 +155,12 @@ function FeatureCard({ icon, title, desc }) {
       >
         {icon}
       </ThemeIcon>
-      <Title order={4} className="text-xl font-bold text-[#1E293B] mb-4 tracking-tight">{title}</Title>
-      <Text className="text-[#64748B] leading-relaxed font-medium text-[15px] max-w-[280px]">{desc}</Text>
+      <Title order={4} className="text-xl font-bold text-[#1E293B] mb-4 tracking-tight">
+        {title}
+      </Title>
+      <Text className="text-[#64748B] leading-relaxed font-medium text-[15px] max-w-[280px]">
+        {desc}
+      </Text>
     </Box>
   );
 }

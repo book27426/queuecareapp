@@ -9,7 +9,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { 
   Search, X, Building2, Clock, Activity, User, 
-  Phone, Ticket, PlusCircle, AlertCircle, CheckCircle2 
+  Phone, PlusCircle, AlertCircle 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,6 +34,7 @@ export default function JoinQueuePage() {
   const [newQueueData, setNewQueueData] = useState(null);
   const [isPhoneUser, setIsPhoneUser] = useState(false);
 
+  // Load saved phone from localStorage
   useEffect(() => {
     const savedPhone = localStorage.getItem('user_phone');
     if (savedPhone) {
@@ -42,12 +43,13 @@ export default function JoinQueuePage() {
     }
   }, []);
 
+  // --- 📡 Fetch Facilities ---
   const fetchSections = useCallback(async (nameQuery = "") => {
     setLoading(true);
     setError(null);
     try {
-      const baseUrl = '/api/v1/section';
-      const url =  `${baseUrl}?name=${encodeURIComponent(nameQuery.trim())}`
+      const baseUrl = 'https://queuecaredev.vercel.app/api/v1/section';
+      const url = `${baseUrl}?name=${encodeURIComponent(nameQuery.trim())}`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -67,12 +69,12 @@ export default function JoinQueuePage() {
     }
   }, []);
 
-  // โหลดข้อมูลครั้งแรก
+  // Initial load
   useEffect(() => {
     fetchSections(""); 
   }, [fetchSections]);
 
-  // ระบบค้นหา (Debounce)
+  // Search Debounce
   useEffect(() => {
     if (searchQuery === "") {
       fetchSections("");
@@ -84,40 +86,38 @@ export default function JoinQueuePage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, fetchSections]);
 
-  // --- 🎫 2. ฟังก์ชันจองคิว (ตาม API Spec: POST /api/v1/queue) ---
-const handleCreateQueue = async () => {
-  if (!name.trim() || phone.length !== 10) return;
-  setStep('processing');
-  setError(null);
+  // --- 🎫 Create Queue (POST /api/v1/queue) ---
+  const handleCreateQueue = async () => {
+    if (!name.trim() || phone.length !== 10) return;
+    setStep('processing');
+    setError(null);
 
-  try {
-    const response = await fetch("https://queuecaredev.vercel.app/api/v1/queue", {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        section_id: Number(selectedHospital.id), 
-        name: name.trim(), 
-        phone_num: phone 
-      })
-    });
+    try {
+      const response = await fetch("https://queuecaredev.vercel.app/api/v1/queue", {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          section_id: Number(selectedHospital.id), 
+          name: name.trim(), 
+          phone_num: phone 
+        })
+      });
 
-    const result = await response.json();
-    console.log("📥 Result from POST:", result);
+      const result = await response.json();
 
-    if (result.success && result.data) {
-      const queueInfo = result.data; 
-      setNewQueueData(queueInfo); 
-      setStep('ticket');
-    } else {
-      setError(result.message || "จองคิวไม่สำเร็จ");
+      if (result.success && result.data) {
+        setNewQueueData(result.data); 
+        setStep('ticket');
+      } else {
+        setError(result.message || "จองคิวไม่สำเร็จ");
+        setStep('form');
+      }
+    } catch (err) {
+      setError("การเชื่อมต่อมีปัญหา");
       setStep('form');
     }
-  } catch (err) {
-    setError("การเชื่อมต่อมีปัญหา");
-    setStep('form');
-  }
-};
+  };
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
@@ -126,7 +126,7 @@ const handleCreateQueue = async () => {
       <main className="py-12 md:py-20">
         <Container size="xl">
           <Stack gap={40}>
-            {/* ส่วนค้นหา */}
+            {/* Search Section */}
             <Stack align="center" className="text-center">
               <Title order={1} fz={{ base: 32, md: 48 }} fw={900}>
                 Select <Text span c="blue" inherit>Institution.</Text>
@@ -149,7 +149,7 @@ const handleCreateQueue = async () => {
               </Box>
             </Stack>
 
-            {/* 🏥 รายการหน่วยงาน */}
+            {/* Facility List */}
             <AnimatePresence mode="popLayout">
               {!loading && facilities.length > 0 ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={24}>
@@ -168,8 +168,16 @@ const handleCreateQueue = async () => {
               ) : null}
             </AnimatePresence>
 
-            {/* Loading & Empty State */}
-            {loading && <Center py={100}><Stack align="center"><Loader size="xl" variant="dots" /><Text c="dimmed" fw={700}>กำลังค้นหาข้อมูล...</Text></Stack></Center>}
+            {/* States Feedback */}
+            {loading && (
+              <Center py={100}>
+                <Stack align="center">
+                  <Loader size="xl" variant="dots" />
+                  <Text c="dimmed" fw={700}>กำลังค้นหาข้อมูล...</Text>
+                </Stack>
+              </Center>
+            )}
+            
             {!loading && facilities.length === 0 && (
               <Center p={80} className="bg-white rounded-[40px] border-2 border-dashed border-slate-200">
                 <Stack align="center" gap="sm">
@@ -183,7 +191,7 @@ const handleCreateQueue = async () => {
         </Container>
       </main>
 
-      {/* 🎫 Modal จองคิว */}
+      {/* 🎫 Modal Step Controller */}
       <Modal 
         opened={opened} onClose={close} centered radius="40px" withCloseButton={false} 
         padding={0} size={step === 'ticket' ? "450px" : "400px"}
@@ -201,7 +209,11 @@ const handleCreateQueue = async () => {
                     <ActionIcon variant="light" color="gray" radius="xl" onClick={close}><X size={18} /></ActionIcon>
                   </Group>
 
-                  {error && <Alert color="red" variant="light" radius="md" icon={<AlertCircle size={16} />}>{error}</Alert>}
+                  {error && (
+                    <Alert color="red" variant="light" radius="md" icon={<AlertCircle size={16} />}>
+                      {error}
+                    </Alert>
+                  )}
 
                   <Stack gap="md">
                     <TextInput 
@@ -213,11 +225,14 @@ const handleCreateQueue = async () => {
                       label="เบอร์โทรศัพท์" placeholder="08XXXXXXXX" radius="md" size="md" maxLength={10} 
                       value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
                       leftSection={<Phone size={18} color="#2563EB" />}
-                      disabled={isPhoneUser} // ✅ ล็อคเบอร์ถ้า Login มาแล้ว
+                      disabled={isPhoneUser}
                     />
                   </Stack>
 
-                  <Button fullWidth size="xl" radius="xl" color="blue" h={60} onClick={handleCreateQueue} disabled={!name || phone.length !== 10} fw={900}>
+                  <Button 
+                    fullWidth size="xl" radius="xl" color="blue" h={60} 
+                    onClick={handleCreateQueue} disabled={!name || phone.length !== 10} fw={900}
+                  >
                     ยืนยันการรับคิว
                   </Button>
                 </Stack>
@@ -225,37 +240,40 @@ const handleCreateQueue = async () => {
             )}
 
             {step === 'processing' && (
-              <Center py={60}><Stack align="center"><Loader size={50} color="blue" type="bars" /><Text fw={800} c="blue">กำลังออกบัตรคิว...</Text></Stack></Center>
+              <Center py={60}>
+                <Stack align="center">
+                  <Loader size={50} color="blue" type="bars" />
+                  <Text fw={800} c="blue">กำลังออกบัตรคิว...</Text>
+                </Stack>
+              </Center>
             )}
 
-{step === 'ticket' && (
-  <motion.div key="ticket" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-    <Stack align="center" gap="xl">
-      {/* 🎰 ตรวจสอบว่ามีข้อมูลจริงไหม ถ้าไม่มีให้หมุนรอก่อน */}
-      {!newQueueData ? (
-        <Center h={200}><Loader color="blue" /></Center>
-      ) : (
-        <DispenseMachine>
-          {/* 🎫 ดึงข้อมูลจาก API มาโชว์บนกระดาษ */}
-          <PaperTicketContent 
-            queueNumber={newQueueData.number || "---"} 
-            name={newQueueData.name || name} 
-            hospitalName={selectedHospital?.name || "หน่วยงาน"} 
-            status={newQueueData.status || "waiting"} 
-          />
-        </DispenseMachine>
-      )}
-      
-      <Button 
-        fullWidth size="xl" radius="xl" color="blue" 
-        onClick={() => router.push('/myqueue')} 
-        fw={900}
-      >
-        ดูคิวของฉัน
-      </Button>
-    </Stack>
-  </motion.div>
-)}
+            {step === 'ticket' && (
+              <motion.div key="ticket" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                <Stack align="center" gap="xl">
+                  {!newQueueData ? (
+                    <Center h={200}><Loader color="blue" /></Center>
+                  ) : (
+                    <DispenseMachine>
+                      <PaperTicketContent 
+                        queueNumber={newQueueData.number || "---"} 
+                        name={newQueueData.name || name} 
+                        hospitalName={selectedHospital?.name || "หน่วยงาน"} 
+                        status={newQueueData.status || "waiting"} 
+                      />
+                    </DispenseMachine>
+                  )}
+                  
+                  <Button 
+                    fullWidth size="xl" radius="xl" color="blue" 
+                    onClick={() => router.push('/myqueue')} 
+                    fw={900}
+                  >
+                    ดูคิวของฉัน
+                  </Button>
+                </Stack>
+              </motion.div>
+            )}
           </AnimatePresence>
         </Box>
       </Modal>
@@ -263,7 +281,7 @@ const handleCreateQueue = async () => {
   );
 }
 
-// 🏥 ส่วนการ์ดแสดงหน่วยงาน
+// 🏥 Facility Card Component
 function FacilityCard({ hospital, onSelect }) {
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -10 }} onClick={() => onSelect(hospital)}>
@@ -271,7 +289,9 @@ function FacilityCard({ hospital, onSelect }) {
         <Stack gap="md">
           <Group justify="space-between">
             <Badge color="blue" variant="light" radius="sm">OPEN NOW</Badge>
-            <ActionIcon variant="subtle" color="blue" radius="xl" className="opacity-0 group-hover:opacity-100 transition-opacity"><PlusCircle size={24} /></ActionIcon>
+            <ActionIcon variant="subtle" color="blue" radius="xl" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <PlusCircle size={24} />
+            </ActionIcon>
           </Group>
           <Box>
             <Title order={4} fw={900} fz={20} className="line-clamp-2">{hospital.name}</Title>

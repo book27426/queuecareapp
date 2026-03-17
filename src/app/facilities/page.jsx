@@ -9,7 +9,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { 
   Plus, Pencil, X, RefreshCw, ArrowRight, Building2, 
-  Search, AlertCircle, UserPlus, Users, Trash2, Save, Upload, Camera, Mail
+  Search, AlertCircle, UserPlus, Users, Trash2, Save, Camera
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
 
@@ -30,28 +30,33 @@ export default function StaffManagementPage() {
   const [editingData, setEditingData] = useState(null); 
   const [selectedSection, setSelectedSection] = useState(null);
 
-  // --- 📡 1. ดึงข้อมูล (ทุกคนเห็นลิสต์หน่วยงานที่ตัวเองเกี่ยวข้องเหมือนกันหมด) ---
+  // --- 📡 1. Fetch Sections ---
   const fetchAllSections = useCallback(async (name = "") => {
     setLoading(true);
+    setError(null);
     try {
-      const url = name ? `${API_BASE}?name=${encodeURIComponent(name)}` : `${API_BASE}?name=`;
+      const url = `${API_BASE}?name=${encodeURIComponent(name)}`;
       const res = await fetch(url, { 
         method: 'GET',
         credentials: 'include',
       });
       const result = await res.json();
       if (result.success) {
-        // ดึงข้อมูล sub_sections หรือ data ตรงๆ มาโชว์
-        const dataToShow = result.mode === "main-section" ? result.data.sub_sections : (Array.isArray(result.data) ? result.data : [result.data]);
+        const dataToShow = result.mode === "main-section" 
+          ? result.data.sub_sections 
+          : (Array.isArray(result.data) ? result.data : [result.data]);
         setListData(dataToShow || []);
       }
-    } catch (err) { setError("Failed to load data"); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      setError("Failed to load data"); 
+    } finally { 
+      setLoading(false); 
+    }
   }, []);
 
   useEffect(() => { fetchAllSections(); }, [fetchAllSections]);
 
-  // --- 🗑️ 2. ลบหน่วยงาน (สิทธิ์จริงอยู่ที่ Backend เป็นคนตัดสิน) ---
+  // --- 🗑️ 2. Delete Section ---
   const handleDeleteSection = async (id) => {
     if (!confirm("ลบหน่วยงานนี้?")) return;
     try {
@@ -61,7 +66,7 @@ export default function StaffManagementPage() {
       });
       const result = await res.json();
       if (res.ok) fetchAllSections();
-      else alert(result.message || "คุณไม่มีสิทธิ์ลบ (ต้องให้ Admin ตัวจริงในระบบกดยืนยัน)");
+      else alert(result.message || "คุณไม่มีสิทธิ์ลบ");
     } catch (e) { alert("Delete Error"); }
   };
 
@@ -73,23 +78,33 @@ export default function StaffManagementPage() {
           <Group justify="space-between" align="flex-end">
             <Stack gap={4}>
               <Badge variant="filled" color="blue" radius="sm">MANAGEMENT CENTER</Badge>
-              <Title className="text-5xl font-black text-[#1E293B] tracking-tighter italic">Facility <span className="text-blue-600">Console.</span></Title>
+              <Title className="text-5xl font-black text-[#1E293B] tracking-tighter italic">
+                Facility <span className="text-blue-600">Console.</span>
+              </Title>
             </Stack>
             <Group>
-               <TextInput placeholder="Search..." leftSection={<Search size={16}/>} radius="md" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} onKeyDown={(e)=>e.key==='Enter' && fetchAllSections(searchQuery)}/>
-               <Button variant="light" radius="md" leftSection={<UserPlus size={18}/>} onClick={openJoin}>JOIN</Button>
-               <Button onClick={()=>{setEditingData(null); openAdd();}} radius="md" color="blue" leftSection={<Plus size={18}/>}>CREATE</Button>
+              <TextInput 
+                placeholder="Search..." 
+                leftSection={<Search size={16}/>} 
+                radius="md" 
+                value={searchQuery} 
+                onChange={(e)=>setSearchQuery(e.target.value)} 
+                onKeyDown={(e)=>e.key==='Enter' && fetchAllSections(searchQuery)}
+              />
+              <Button variant="light" radius="md" leftSection={<UserPlus size={18}/>} onClick={openJoin}>JOIN</Button>
+              <Button onClick={()=>{setEditingData(null); openAdd();}} radius="md" color="blue" leftSection={<Plus size={18}/>}>CREATE</Button>
             </Group>
           </Group>
 
-          {loading ? <Center h={200}><Loader color="blue" type="bars"/></Center> : (
+          {loading ? (
+            <Center h={200}><Loader color="blue" type="bars"/></Center>
+          ) : (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="xl">
               {listData.map((f) => (
                 <Paper key={f.id} p={30} radius={32} withBorder className="bg-white hover:shadow-2xl transition-all group relative overflow-hidden">
                   <Group justify="space-between" mb="xl">
-                    {/* แสดงรูปภาพ หรือ Icon ถ้าไม่มีรูป */}
                     <Avatar src={f.image_url} size={64} radius="xl" color="blue" className="shadow-lg border-2 border-white">
-                       <Building2 size={32} />
+                      <Building2 size={32} />
                     </Avatar>
                     <Group gap={8}>
                       <ActionIcon variant="subtle" color="blue" size="lg" onClick={()=>{setEditingData(f); openAdd();}}><Pencil size={18}/></ActionIcon>
@@ -100,11 +115,23 @@ export default function StaffManagementPage() {
                   <Stack gap={0} mb="xl">
                     <Text size="xs" fw={900} c="blue">ID: {f.id}</Text>
                     <Title order={3} className="text-2xl font-black text-[#1E293B] truncate">{f.name}</Title>
-                    {/* ปุ่ม Staff List แบบไม่มีตำแหน่งมาโชว์ที่หน้าการ์ด */}
-                    <Button variant="subtle" p={0} h="auto" justify="flex-start" leftSection={<Users size={14}/>} onClick={()=>{setSelectedSection(f); openStaff();}} mt={5}>Staff List</Button>
+                    <Button 
+                      variant="subtle" p={0} h="auto" justify="flex-start" 
+                      leftSection={<Users size={14}/>} 
+                      onClick={()=>{setSelectedSection(f); openStaff();}} mt={5}
+                    >
+                      Staff List
+                    </Button>
                   </Stack>
                   
-                  <Button fullWidth radius="xl" h={54} color="blue" rightSection={<ArrowRight size={18}/>} onClick={()=>router.push(`/facilities/${f.id}`)} className="font-bold shadow-lg italic">MANAGE QUEUE</Button>
+                  <Button 
+                    fullWidth radius="xl" h={54} color="blue" 
+                    rightSection={<ArrowRight size={18}/>} 
+                    onClick={()=>router.push(`/facilities/${f.id}`)} 
+                    className="font-bold shadow-lg italic"
+                  >
+                    MANAGE QUEUE
+                  </Button>
                 </Paper>
               ))}
             </SimpleGrid>
@@ -120,14 +147,12 @@ export default function StaffManagementPage() {
   );
 }
 
-// --- 🛠️ MODAL: Master Modal (สร้าง/แก้ - เน้นเลือกไฟล์รูป) ---
+// --- 🛠️ MODAL: Master Modal (Create/Edit) ---
 function MasterModal({ opened, onClose, data, onSuccess }) {
   const [name, setName] = useState('');
-  const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
-  
   const [inviteCode, setInviteCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [expireMin, setExpireMin] = useState('30');
@@ -136,7 +161,6 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
     if (opened) {
       setName(data?.name || '');
       setPreview(data?.image_url || '');
-      setFile(null);
       setInviteCode('');
     }
   }, [opened, data]);
@@ -150,12 +174,9 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
   const handleAction = async () => {
     if (!name) return;
     setSubmitting(true);
-
     try {
       const isEdit = !!data;
       const url = isEdit ? `${API_BASE}?id=${data.id}` : API_BASE;
-
-      // ✅ Use a plain Object, NOT FormData
       const payload = {
         name: name,
         parent_id: isEdit ? Number(data.parent_id) : 1
@@ -164,10 +185,8 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(payload) // ✅ Stringifying a plain object works!
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -177,11 +196,8 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
         const err = await res.json();
         alert(err.message || "Error");
       }
-    } catch (e) {
-      alert("Network Error");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (e) { alert("Network Error"); } 
+    finally { setSubmitting(false); }
   };
 
   const handleGenerateCode = async () => {
@@ -191,9 +207,7 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
       const res = await fetch(`${API_BASE}/invite_code?id=${data.id}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json' // Tell backend to expect JSON
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expire_minutes: Number(expireMin) })
       });
       const result = await res.json();
@@ -201,7 +215,8 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
         setInviteCode(result.data.invite_code);
         setCooldown(60);
       } else { alert(result.message || "Failed to generate"); }
-    } catch (e) { alert("Error generating code"); } finally { setGenerating(false); }
+    } catch (e) { alert("Error generating code"); } 
+    finally { setGenerating(false); }
   };
 
   return (
@@ -213,7 +228,7 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
             <Avatar src={preview} size={100} radius={32} color="blue" className="shadow-md">
               <Camera size={40}/>
             </Avatar>
-            <FileButton onChange={(f) => { setFile(f); if(f) setPreview(URL.createObjectURL(f)); }} accept="image/png,image/jpeg">
+            <FileButton onChange={(f) => { if(f) setPreview(URL.createObjectURL(f)); }} accept="image/*">
               {(props) => <Button {...props} variant="light" size="xs">Change Photo</Button>}
             </FileButton>
           </Stack>
@@ -221,11 +236,11 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
           <TextInput label="FACILITY NAME" value={name} onChange={(e)=>setName(e.target.value)} radius="md" size="lg" placeholder="e.g. Wellness Center" />
           
           {data && (
-            <Paper p="lg" radius="24" withBorder bg="blue-50/10" className="border-dashed">
+            <Paper p="lg" radius="24" withBorder className="border-dashed bg-slate-50/50">
               <Stack gap="sm">
                 <Text size="xs" fw={900} c="blue">INVITATION SYSTEM</Text>
                 <Select label="EXPIRE IN" value={expireMin} onChange={setExpireMin} radius="md"
-                  data={[{value:'1',label:'1 min'},{value:'30',label:'30 min'},{value:'60',label:'1 hr'},{value:'1440',label:'1 day'},{value:'0',label:'1 week'}]}
+                  data={[{value:'1',label:'1 min'},{value:'30',label:'30 min'},{value:'60',label:'1 hr'},{value:'1440',label:'1 day'}]}
                 />
                 <Group align="flex-end">
                   <TextInput value={inviteCode} readOnly placeholder="Code" className="flex-1" radius="md" />
@@ -251,17 +266,19 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
 function StaffManagementModal({ opened, onClose, section }) {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (opened && section) {
-      const load = async () => {
+      const loadStaff = async () => {
         setLoading(true);
         try {
           const res = await fetch(`${API_BASE}?id=${section.id}`);
           const result = await res.json();
           if (result.success) setStaffs(result.data.staffs || []);
-        } catch (e) {} finally { setLoading(false); }
+        } catch (e) { console.error(e); } 
+        finally { setLoading(false); }
       };
-      load();
+      loadStaff();
     }
   }, [opened, section]);
 
@@ -278,13 +295,12 @@ function StaffManagementModal({ opened, onClose, section }) {
               <Paper key={s.id} p="md" radius="xl" withBorder className="bg-slate-50/50">
                 <Group justify="space-between">
                   <Group gap="md">
-                    <Avatar color="blue" radius="xl" size="sm" className="font-bold">{s.first_name[0]}</Avatar>
+                    <Avatar color="blue" radius="xl" size="sm" className="font-bold">{s.first_name?.[0]}</Avatar>
                     <Stack gap={0}>
                       <Text fw={800} size="sm">{s.first_name} {s.last_name}</Text>
                       <Text size="xs" c="dimmed">{s.email}</Text>
                     </Stack>
                   </Group>
-                  {/* ไม่มีการแก้ Role ในหน้านี้ตามที่พี่ขอ */}
                   <Badge variant="light" radius="md">{s.role}</Badge>
                 </Group>
               </Paper>
@@ -299,21 +315,32 @@ function StaffManagementModal({ opened, onClose, section }) {
 // --- ➕ MODAL: Join ---
 function JoinSectionModal({ opened, onClose, onSuccess }) {
   const [code, setCode] = useState('');
+  const [joining, setJoining] = useState(false);
+
   const handleJoin = async () => {
-    const res = await fetch(API_STAFF, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invite_code: code })
-    });
-    if (res.ok) { onSuccess(); onClose(); setCode(''); }
-    else alert("Invalid Code");
+    if(!code) return;
+    setJoining(true);
+    try {
+      const res = await fetch(API_STAFF, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_code: code })
+      });
+      if (res.ok) { 
+        onSuccess(); 
+        onClose(); 
+        setCode(''); 
+      } else { alert("Invalid Code"); }
+    } catch(e) { alert("Join Error"); }
+    finally { setJoining(false); }
   };
+
   return (
     <Modal opened={opened} onClose={onClose} centered radius={32} title="Join with Invite Code">
       <Stack p="xl">
-        <TextInput value={code} onChange={(e)=>setCode(e.target.value)} placeholder="0a8d6e" size="lg" radius="md" />
-        <Button onClick={handleJoin} size="lg" radius="xl" color="blue">Confirm Join</Button>
+        <TextInput value={code} onChange={(e)=>setCode(e.target.value)} placeholder="Enter 6-digit code" size="lg" radius="md" />
+        <Button onClick={handleJoin} loading={joining} size="lg" radius="xl" color="blue">Confirm Join</Button>
       </Stack>
     </Modal>
   );

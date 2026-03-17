@@ -71,7 +71,7 @@ export default function FacilityHubPage() {
   useEffect(() => {
     if (hubId) {
       fetchData();
-      const interval = setInterval(() => fetchData(true), 5000);
+      const interval = setInterval(() => fetchData(true), 30000);
       return () => clearInterval(interval);
     }
   }, [fetchData, hubId]);
