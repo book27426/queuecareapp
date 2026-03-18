@@ -10,7 +10,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { 
   CheckCircle, UserX, User, Phone, Layers, Clock, Send, X, ArrowLeft,
-  Info, Activity, ClipboardList, UserCheck
+  Info, Activity, ClipboardList, UserCheck, PlayCircle
 } from 'lucide-react';
 import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
@@ -62,23 +62,51 @@ export default function CounterWorkstationPage() {
     return () => clearInterval(interval);
   }, [fetchCounterData]);
 
-  const handleQueueAction = async (actionType) => {
-    if (!currentQueue) return;
-    const targetStatus = actionType === 'FINISH' ? "complete" : "cancel";
+  const handleQueueAction = async (actionType, transferSectionId = null) => {
+    setIsSyncing(true);
+
+    const body = {
+      next: true,
+      queue_detail: notes || "",
+      counter_id: counterId
+    };
+
+    switch (actionType) {
+      case 'CALL_NEXT':
+        body.status = "serving";
+        break;
+      case 'FINISH':
+        body.status = "complete";
+        break;
+      case 'NO_SHOW':
+        body.status = "no_show";
+        break;
+      case 'TRANSFER':
+        body.status = "transfer";
+        body.section_id = transferSectionId;
+        break;
+      default:
+        return;
+    }
 
     try {
-      const res = await fetch(`${API_QUEUE}?id=${currentQueue.id}`, {
+      const res = await fetch(`${API_QUEUE}?id=${currentQueue?.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: targetStatus, queue_detail: notes })
+        body: JSON.stringify(body)
       });
 
       if (res.ok) {
         setNotes("");
+        if (actionType === 'TRANSFER') closeTransfer();
         fetchCounterData(true);
       }
-    } catch (e) { alert("Action Error"); }
+    } catch (e) {
+      alert("System Error: Could not update queue.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   if (loading) return <Center h="100vh" bg="#F8FAFC"><Loader color="blue" type="dots" size="xl" /></Center>;
@@ -154,37 +182,83 @@ export default function CounterWorkstationPage() {
                     </Box>
 
                     {/* ✅ จัดกลุ่มปุ่มให้อยู่กึ่งกลางหน้าจออย่างสมดุล */}
+                    {/* ✅ DYNAMIC CONTROL PANEL */}
                     <Stack gap="xl" className="w-full max-w-md mx-auto mt-8">
-                      <Group grow gap="xl">
-                        <Button 
-                          onClick={() => handleQueueAction('FINISH')} 
-                          disabled={!currentQueue} 
-                          color="teal" radius="xl" h={74} 
-                          className="font-black italic shadow-xl shadow-teal-500/10 active:scale-95 transition-all text-lg" 
-                          leftSection={<CheckCircle size={24} />}
-                        >
-                          FINISH
-                        </Button>
-                        <Button 
-                          onClick={() => handleQueueAction('NO_SHOW')} 
-                          disabled={!currentQueue} 
-                          color="red" radius="xl" h={74} 
-                          className="font-black italic shadow-xl shadow-red-500/10 active:scale-95 transition-all text-lg" 
-                          leftSection={<UserX size={24} />}
-                        >
-                          NO SHOW
-                        </Button>
-                      </Group>
-                      
-                      <Button 
-                        onClick={openTransfer} 
-                        disabled={!currentQueue} 
-                        fullWidth color="blue" radius="28px" h={88} 
-                        className="text-2xl font-black italic shadow-2xl shadow-blue-500/20 active:scale-95 transition-all" 
-                        rightSection={<Send size={28} />}
-                      >
-                        TRANSFER PATIENT
-                      </Button>
+                      <AnimatePresence mode="wait">
+                        {!currentQueue ? (
+                          /* --- STATE A: IDLE (No Patient) --- */
+                          <motion.div
+                            key="idle-state"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                          >
+                            <Button 
+                              onClick={() => handleQueueAction('CALL_NEXT')}
+                              disabled={waitingList.length === 0 || isSyncing}
+                              fullWidth
+                              size="xl" 
+                              radius="28px" 
+                              h={100} 
+                              color="blue"
+                              className="text-2xl font-black italic shadow-2xl shadow-blue-500/20 active:scale-95 transition-all"
+                              leftSection={isSyncing ? <Loader size="sm" color="white" /> : <PlayCircle size={32} />}
+                            >
+                              {waitingList.length > 0 ? "START NEXT QUEUE" : "NO PATIENTS IN LINE"}
+                            </Button>
+                            {waitingList.length > 0 && (
+                              <Text size="xs" fw={900} c="blue" ta="center" mt="md" className="tracking-widest opacity-60">
+                                NEXT UP: #{waitingList[0]?.number}
+                              </Text>
+                            )}
+                          </motion.div>
+                        ) : (
+                          /* --- STATE B: ACTIVE (Serving Patient) --- */
+                          <motion.div
+                            key="active-state"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="w-full flex flex-col gap-6"
+                          >
+                            <Group grow gap="xl">
+                              <Button 
+                                onClick={() => handleQueueAction('FINISH')} 
+                                color="teal" 
+                                radius="xl" 
+                                h={74} 
+                                className="font-black italic shadow-xl shadow-teal-500/10 active:scale-95 transition-all text-lg" 
+                                leftSection={<CheckCircle size={24} />}
+                              >
+                                FINISH
+                              </Button>
+                              <Button 
+                                onClick={() => handleQueueAction('NO_SHOW')} 
+                                color="red" 
+                                radius="xl" 
+                                h={74} 
+                                className="font-black italic shadow-xl shadow-red-500/10 active:scale-95 transition-all text-lg" 
+                                leftSection={<UserX size={24} />}
+                              >
+                                NO SHOW
+                              </Button>
+                            </Group>
+                            
+                            <Button 
+                              onClick={openTransfer} 
+                              fullWidth 
+                              color="blue" 
+                              variant="light"
+                              radius="28px" 
+                              h={88} 
+                              className="text-2xl font-black italic border-2 border-blue-100 active:scale-95 transition-all" 
+                              rightSection={<Send size={28} />}
+                            >
+                              TRANSFER PATIENT
+                            </Button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </Stack>
                   </Paper>
                 </Grid.Col>
