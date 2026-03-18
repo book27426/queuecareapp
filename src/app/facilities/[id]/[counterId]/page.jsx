@@ -58,7 +58,7 @@ export default function CounterWorkstationPage() {
 
   useEffect(() => {
     fetchCounterData();
-    const interval = setInterval(() => fetchCounterData(true), 5000);
+    const interval = setInterval(() => fetchCounterData(true), 30000);
     return () => clearInterval(interval);
   }, [fetchCounterData]);
 

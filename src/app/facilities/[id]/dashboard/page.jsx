@@ -3,12 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { 
-  Box, Text, Stack, Group, Title, Paper, Badge, Grid, ThemeIcon, ScrollArea, Center 
+    Box, Text, Stack, Group, Title, Paper, Badge, Grid, ThemeIcon, ScrollArea, Center, Loader 
 } from '@mantine/core';
 import { 
-  Clock, Zap, Timer, MonitorPlay, Activity 
+    Clock, Zap, Timer, MonitorPlay 
 } from 'lucide-react';
-import { QueueCareLogo } from "@/components/Navbar";
 import { motion } from 'framer-motion';
 
 export default function FullScreenSignageDashboard() {
@@ -16,31 +15,64 @@ export default function FullScreenSignageDashboard() {
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  //fetch get api/v1/queue?section_id
-  const [activeCalls] = useState([
-    { id: 'A009', unit: 'Dental Unit', counter: '03' },
-    { id: 'A010', unit: 'Center Terminal', counter: '01' },
-    { id: 'B022', unit: 'General Clinic', counter: '05' },
-    { id: 'C012', unit: 'X-Ray Lab', counter: '02' },
-    { id: 'A011', unit: 'Dental Unit', counter: '04' },
-    { id: 'D005', unit: 'Emergency', counter: '01' },
-  ]);
+  // --- Dynamic Data States ---
+  const [activeCalls, setActiveCalls] = useState([]);
+  const [nextInLine, setNextInLine] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [nextInLine] = useState([
-    { id: 'A012', unit: 'Dental Unit', wait: '2m' },
-    { id: 'B023', unit: 'General Clinic', wait: '3m' },
-    { id: 'A013', unit: 'Dental Unit', wait: '5m' },
-    { id: 'C013', unit: 'X-Ray Lab', wait: '7m' },
-    { id: 'B024', unit: 'General Clinic', wait: '9m' },
-  ]);
+  // const [activeCalls] = useState([
+  //   { id: 'A009', unit: 'Dental Unit', counter: '03' },
+  //   { id: 'A010', unit: 'Center Terminal', counter: '01' },
+  //   { id: 'B022', unit: 'General Clinic', counter: '05' },
+  //   { id: 'C012', unit: 'X-Ray Lab', counter: '02' },
+  //   { id: 'A011', unit: 'Dental Unit', counter: '04' },
+  //   { id: 'D005', unit: 'Emergency', counter: '01' },
+  // ]);
+
+  // const [nextInLine] = useState([
+  //   { id: 'A012', unit: 'Dental Unit', wait: '2m' },
+  //   { id: 'B023', unit: 'General Clinic', wait: '3m' },
+  //   { id: 'A013', unit: 'Dental Unit', wait: '5m' },
+  //   { id: 'C013', unit: 'X-Ray Lab', wait: '7m' },
+  //   { id: 'B024', unit: 'General Clinic', wait: '9m' },
+  // ]);
+
+  const fetchQueueData = async () => {
+    try {
+      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Mapping backend response to your state
+        // Use result.data.serving for activeCalls and result.data.waiting for nextInLine
+        setActiveCalls(result.data.serving || []);
+        setNextInLine(result.data.waiting || []);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => { 
     setMounted(true); 
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    fetchQueueData();
 
-  if (!mounted) return null;
+    // Auto-refresh every 5 seconds
+    const pollInterval = setInterval(fetchQueueData, 5000);
+    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearInterval(clockInterval);
+    };
+  }, [id]);
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased overflow-hidden p-6">
@@ -144,7 +176,7 @@ export default function FullScreenSignageDashboard() {
                         className={`px-8 py-5 border-b border-slate-50 flex items-center justify-between transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}
                       >
                         <Stack gap={2}>
-                          <Text c="blue.6" fw={900} fs="italic" size="32px" className="tracking-tighter leading-none">{item.id}</Text>
+                          <Text c="blue.6" fw={900} fs="italic" size="32px" className="tracking-tighter leading-none">{item.number}</Text>
                           <Text c="#1E293B" fw={700} tt="uppercase" lts="0.05em" size="xs">{item.unit}</Text>
                         </Stack>
                         <Center className="bg-teal-50 px-4 py-2 rounded-xl border border-teal-100">
