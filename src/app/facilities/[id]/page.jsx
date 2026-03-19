@@ -74,6 +74,8 @@ export default function FacilityHubPage() {
         setLiveQueues(result.data.queues || []);
         setStats(result.data.stats || []);
         setCounters(result.data.counters || [])
+        localStorage.setItem('cached_sub_sections', JSON.stringify(result.data.sub_sections));
+        localStorage.setItem('last_sync_time', new Date().toISOString());
       }else{
         if (result.message === "Forbidden" || res.status === 403) {
           if (!isRedirecting.current) {

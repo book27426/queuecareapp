@@ -33,6 +33,26 @@ export default function CounterWorkstationPage() {
   const [waitingList, setWaitingList] = useState([]);
   const [notes, setNotes] = useState("");
 
+  const [transferOptions, setTransferOptions] = useState([]); // To store the formatted list for Select
+  const [targetSectionId, setTargetSectionId] = useState(null); // To store chosen value
+
+  useEffect(() => {
+    const cachedData = localStorage.getItem('cached_sub_sections');
+    if (cachedData) {
+      try {
+        const sections = JSON.parse(cachedData);
+        // Mantine Select requires { value: string, label: string }
+        const formatted = sections.map(s => ({
+          value: s.id.toString(),
+          label: s.name
+        }));
+        setTransferOptions(formatted);
+      } catch (e) {
+        console.error("Error parsing sections", e);
+      }
+    }
+  }, []);
+
   const fetchCounterData = useCallback(async (isSilent = false) => {
     if (!isSilent) setFetchError(null);
     setIsSyncing(true);
@@ -68,7 +88,8 @@ export default function CounterWorkstationPage() {
     const body = {
       next: true,
       queue_detail: notes || "",
-      counter_id: counterId
+      counter_id: counterId,
+      section_id: id
     };
 
     switch (actionType) {
@@ -282,18 +303,29 @@ export default function CounterWorkstationPage() {
               <ScrollArea className="flex-1" p={25}>
                 <Stack gap="lg">
                   <AnimatePresence mode="popLayout">
-                    {waitingList.map((item, i) => (
+                    {waitingList.map((item) => (
                       <motion.div key={item.number} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}>
-                        <Paper p={24} radius="30px" withBorder className={`border-slate-100 transition-all ${i === 0 ? 'bg-blue-600 border-blue-600 shadow-xl shadow-blue-200' : 'bg-white hover:bg-slate-50'}`}>
-                          <Flex justify="space-between" align="center">
-                            <Stack gap={0}>
-                              <Title order={4} className={`text-3xl font-black italic tracking-tighter ${i === 0 ? 'text-white' : 'text-blue-600'}`}>#{item.number}</Title>
-                              <Text fw={800} size="sm" className={`uppercase truncate max-w-[140px] ${i === 0 ? 'text-blue-100' : 'text-[#1E293B]'}`}>{item.name}</Text>
-                            </Stack>
-                            <Badge size="lg" radius="md" variant={i === 0 ? 'white' : 'light'} color="blue" leftSection={<Clock size={12} />} className="font-bold">Waiting</Badge>
-                          </Flex>
-                        </Paper>
-                      </motion.div>
+                      <Paper p={24} radius="30px" withBorder className="bg-white border-slate-100 hover:bg-slate-50 transition-all">
+                        <Flex justify="space-between" align="center">
+                          <Stack gap={0}>
+                            {/* 2. Your updated Title (Always Blue) */}
+                            <Title order={4} className="text-3xl font-black italic tracking-tighter text-blue-600">
+                              #{item.number}
+                            </Title>
+                            
+                            {/* 3. Your updated Text (Always Dark Slate) */}
+                            <Text fw={800} size="sm" className="uppercase truncate max-w-[140px] text-[#1E293B]">
+                              {item.name}
+                            </Text>
+                          </Stack>
+
+                          {/* 4. Your updated Badge (Always Light variant) */}
+                          <Badge size="lg" radius="md" variant="light" color="blue" leftSection={<Clock size={12} />} className="font-bold">
+                            Waiting
+                          </Badge>
+                        </Flex>
+                      </Paper>
+                    </motion.div>
                     ))}
                   </AnimatePresence>
                 </Stack>
@@ -307,11 +339,16 @@ export default function CounterWorkstationPage() {
         <Box className="p-12">
           <Group justify="space-between" mb={40}>
             <Title order={2} className="font-black italic uppercase text-[#1E293B]">Transfer Case</Title>
-            <ActionIcon onClick={closeTransfer} variant="subtle" color="gray" radius="xl" size="xl"><X size={24}/></ActionIcon>
+            <ActionIcon onClick={closeTransfer} variant="subtle" color="gray" radius="xl" size="xl">
+              <X size={24}/>
+            </ActionIcon>
           </Group>
+
           <Stack gap="xl">
-            <Select label="Target Unit" placeholder="Select..." data={['Dental', 'General']} radius="xl" size="lg" classNames={{ input: "font-bold h-16 bg-slate-50" }} />
-            <Button fullWidth size="xl" radius="xl" color="blue" h={80} className="font-black italic">CONFIRM</Button>
+            <Select label="Target Unit" placeholder="Select destination..." data={transferOptions} value={targetSectionId} onChange={setTargetSectionId} radius="xl" size="lg" classNames={{ input: "font-bold h-16 bg-slate-50" }} />
+            <Button fullWidth size="xl" radius="xl" color="blue" h={80} className="font-black italic" loading={isSyncing} disabled={!targetSectionId} onClick={() => handleQueueAction('TRANSFER', targetSectionId)}>
+              CONFIRM TRANSFER
+            </Button>
           </Stack>
         </Box>
       </Modal>
