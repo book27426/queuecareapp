@@ -11,7 +11,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { 
   Plus, Pencil, X, ArrowRight, Users, ArrowLeft, Clock, 
   Save, Building2, Camera, Timer, UserPlus, Hourglass, Activity, 
-  MonitorPlay, QrCode, Copy, Download 
+  MonitorPlay, QrCode, Copy, Download , Trash2
 }from 'lucide-react';
 import Navbar from "@/components/Navbar";
 import { useParams, useRouter } from 'next/navigation';
@@ -208,16 +208,14 @@ export default function FacilityHubPage() {
                                     }`} 
                                   />
                                 </Box>
-
-                                <ActionIcon 
-                                  variant="light" 
-                                  color="indigo" 
-                                  radius="xl" 
-                                  size="xl" 
-                                  onClick={() => { setEditingId(c.id); setModalType('COUNTER'); openAdd(); }}
-                                >
-                                  <Pencil size={18}/>
-                                </ActionIcon>
+                                <Group gap={4}> {/* gap={4} makes them very close */}
+                                  <ActionIcon variant="light" color="indigo" radius="xl" size="xl" onClick={() => { setEditingId(c.id); setModalType('COUNTER'); openAdd(); }}>
+                                    <Pencil size={18}/>
+                                  </ActionIcon>
+                                  <ActionIcon variant="subtle" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
+                                    <Trash2 size={18}/>
+                                  </ActionIcon>
+                                </Group>
                               </Group>
                               
                               <Box>
@@ -281,7 +279,12 @@ export default function FacilityHubPage() {
                             <Stack gap={24}>
                               <Group justify="space-between">
                                 <Avatar src={unit.image_url} size={60} radius="20px" color="blue" variant="light"><Building2 size={26} /></Avatar>
-                                <ActionIcon variant="light" color="blue" radius="xl" size="xl" onClick={() => { setEditingId(unit.id); setModalType('SECTION'); openAdd(); }}><Pencil size={18}/></ActionIcon>
+                                <Group gap={4}> {/* gap={4} makes them very close */}
+                                  <ActionIcon variant="light" color="blue" radius="xl" size="xl" onClick={() => { setEditingId(unit.id); setModalType('SECTION'); openAdd(); }}><Pencil size={18}/></ActionIcon>
+                                  <ActionIcon variant="subtle" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
+                                    <Trash2 size={18}/>
+                                  </ActionIcon>
+                                </Group>
                               </Group>
                               <Stack gap={4}>
                                 <Title order={3} className="text-2xl font-black italic text-[#1E293B] uppercase">{unit.name}</Title>
@@ -434,6 +437,30 @@ function AddUnitModal({ opened, onClose, data, hubId, onSuccess, type }) {
       setSubmitting(false); 
     }
   };
+
+  const handleDelete = async (id, type) => {
+    const label = type === 'COUNTER' ? 'Counter' : 'Sector';
+    if (!window.confirm(`Are you sure you want to delete this ${label}?`)) return;
+
+    try {
+      const api = type === 'COUNTER' ? API_COUNTER : API_SECTION;
+      const res = await fetch(`${api}?id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        // Refresh the data to update the UI
+        fetchData();
+      } else {
+        alert(result.message || "Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("An error occurred while deleting.");
+    }
+  };  
 
   const handleGenerateCode = async () => {
     if (!data?.id || cooldown > 0) return;
