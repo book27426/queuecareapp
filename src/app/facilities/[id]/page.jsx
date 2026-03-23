@@ -11,7 +11,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { 
   Plus, Pencil, X, ArrowRight, Users, ArrowLeft, Clock, 
   Save, Building2, Camera, Timer, UserPlus, Hourglass, Activity, 
-  MonitorPlay, QrCode, Copy, Download , Trash2
+  MonitorPlay, QrCode, Copy, Download , Trash2, ArchiveRestore
 }from 'lucide-react';
 import Navbar from "@/components/Navbar";
 import { useParams, useRouter } from 'next/navigation';
@@ -20,8 +20,9 @@ import { QRCodeSVG } from 'qrcode.react';
 
 // ✅ API Endpoints
 const API_SECTION = "https://queuecaredev.vercel.app/api/v1/section";
-const API_INVITE = "https://queuecaredev.vercel.app/api/v1/section/invite_code";
+const API_OTHER = "https://queuecaredev.vercel.app/api/v1/section/other";
 const API_COUNTER = "https://queuecaredev.vercel.app/api/v1/counter";
+const API_STAFF = "https://queuecaredev.vercel.app/api/v1/staff";
 
 export default function FacilityHubPage() {
   const params = useParams();
@@ -46,63 +47,98 @@ export default function FacilityHubPage() {
   const [editingId, setEditingId] = useState(null);
   const [modalType, setModalType] = useState('SECTION');
 
-  // 📊 Mock Data สำหรับ Statistics
-  const statsMock = {
-    avgOpTime: "12m 30s", //get result.data.stats.est_avg_operation_time_per_case_minutes
-    avgNewQueue: "24/h", //get result.est_new_queue_per_hour
-    avgComQueue: "20/h" //get result.est_complete_case_per_hour
-  };
-
   const isRedirecting = useRef(false);
 
-  const fetchData = useCallback(async () => {
-    if (isRedirecting.current) return;
-
-    setIsSyncing(true);
-    
+  // ✅ 1. Fetch Static Data (Run once on load)
+  const fetchStaticData = useCallback(async () => {
+    setInitialLoading(true);
     try {
-      const res = await fetch(`${API_SECTION}?id=${hubId}`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
+      const res = await fetch(`${API_SECTION}?id=${hubId}`, { credentials: 'include' });
       const result = await res.json();
       if (result.success) {
         setMainSection(result.data.section);
         setListData(result.data.sub_sections || []);
-        setStaffs(result.data.staffs || []);
-        setLiveQueues(result.data.queues || []);
-        setStats(result.data.stats || []);
-        setCounters(result.data.counters || [])
-        localStorage.setItem('cached_sub_sections', JSON.stringify(result.data.sub_sections));
-        localStorage.setItem('last_sync_time', new Date().toISOString());
-      }else{
-        if (result.message === "Forbidden" || res.status === 403) {
-          if (!isRedirecting.current) {
-            isRedirecting.current = true; 
-            alert("คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Forbidden)");
-            
-            router.back();
-          }
-        } else {
-          if (!isSilent) setFetchError(result.message || "เกิดข้อผิดพลาด");
-        }
+      } else if (res.status === 403) {
+        router.back();
       }
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Static fetch error:", err);
     } finally {
-      setIsSyncing(false);
-      if (!isRedirecting.current) setInitialLoading(false);
+      setInitialLoading(false);
     }
   }, [hubId, router]);
 
+  // ✅ 2. Fetch Live Data (Runs every 5-10 seconds)
+  const fetchLiveData = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${API_OTHER}?id=${hubId}`, { credentials: 'include' });
+      const result = await res.json();
+      if (result.success) {
+        setLiveQueues(result.data.queues || []);
+        setStats(result.data.stats || {});
+        setCounters(result.data.counters || []);
+      }
+    } catch (err) {
+      console.error("Live fetch error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [hubId]);
+
+  // ✅ 3. Fetch Staff (On-Demand)
+  const fetchStaffData = async () => {
+    try {
+      const res = await fetch(`${API_STAFF}?id=${hubId}`, { credentials: 'include' });
+      const result = await res.json();
+      if (result.success) {
+        setStaffs(result.data || []);
+        openStaff(); // Open modal after data is ready
+      }
+    } catch (err) {
+      alert("Could not load staff list");
+    }
+  };
+
   useEffect(() => {
     if (hubId) {
-      fetchData();
-      const interval = setInterval(() => {if (!isRedirecting.current) fetchData()}, 30000);
-      return () => clearInterval(interval);
+      // Phase 1: Load static data immediately
+      fetchStaticData();
+      
+      // Phase 2: Load live data immediately, then start a fast interval (5s)
+      fetchLiveData();
+      const liveInterval = setInterval(fetchLiveData, 5000); 
+
+      return () => clearInterval(liveInterval);
     }
-  }, [fetchData, hubId]);
+  }, [hubId, fetchStaticData, fetchLiveData]);
+
+  const refreshAll = useCallback(() => {
+    fetchStaticData();
+    fetchLiveData();
+  }, [fetchStaticData, fetchLiveData]);
+
+  const handleDelete = async (id, deleteType) => {
+    const label = deleteType === 'COUNTER' ? 'Counter' : 'Sector';
+    if (!window.confirm(`Are you sure you want to delete this ${label}?`)) return;
+
+    try {
+      const api = deleteType === 'COUNTER' ? API_COUNTER : API_SECTION;
+      const res = await fetch(`${api}?id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        refreshAll(); // Refresh UI
+      } else {
+        alert(result.message || "Failed to delete");
+      }
+    } catch (err) {
+      alert("An error occurred while deleting.");
+    }
+  };
 
   if (initialLoading && !mainSection) return <Box p={50} bg="#F8FAFC" className="min-h-screen"><Container size="xl"><Skeleton height={600} radius={40} /></Container></Box>;
 
@@ -126,7 +162,7 @@ export default function FacilityHubPage() {
             <Group gap="md">
               <Button variant="light" color="teal" radius="xl" size="lg" h={60} leftSection={<QrCode size={20}/>} onClick={openQr} className="font-bold">QR CODE</Button>
               <Button variant="light" color="indigo" radius="xl" size="lg" h={60} leftSection={<MonitorPlay size={20}/>} onClick={() => router.push(`/facilities/${hubId}/dashboard`)} className="font-bold">TV DISPLAY</Button>
-              <Button variant="light" color="blue" radius="xl" size="lg" h={60} leftSection={<Users size={20}/>} onClick={openStaff} className="font-bold">STAFFS</Button>
+              <Button variant="light" color="blue" radius="xl" size="lg" h={60} leftSection={<Users size={20}/>} onClick={fetchStaffData} className="font-bold">STAFFS</Button>
               <Button 
                 variant="light" 
                 color="slate" // Using slate/gray to distinguish it as a "settings" action
@@ -143,14 +179,32 @@ export default function FacilityHubPage() {
               >
                 EDIT HUB
               </Button>
+              <Button 
+                variant="light" 
+                color="red" 
+                radius="xl" 
+                size="lg" 
+                h={60} 
+                  leftSection={<Trash2 size={20} />}
+                  onClick={() => {
+                    // Call the parent's logic
+                    handleDelete(unit.id, 'SECTION')
+                    // Close the modal after clicking delete
+                    onClose(); 
+                  }}
+                  className="font-black italic uppercase"
+                >
+                Delete
+              </Button>
             </Group>
           </Group>
 
           {/* ✅ 1. OVERALL STATISTICS (Mock Data) */}
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
-            <StatBox label="AVG OPERATION TIME" value={stats.est_avg_operation_time_per_case_minutes} icon={Hourglass} color="blue" />
-            <StatBox label="NEW QUEUES /H" value={stats.est_new_queue_per_hour} icon={UserPlus} color="teal" />
-            <StatBox label="DONE QUEUES /H" value={stats.est_complete_case_per_hour} icon={Activity} color="indigo" />
+          <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
+            <StatBox label="TOTAL QUEUES" value={stats.total_today} icon={UserPlus} color="teal" />
+            <StatBox label="NEW QUEUES /H" value={stats.load_per_hour} icon={ArchiveRestore} color="indigo" />
+            <StatBox label="DONE QUEUES /H" value={stats.load_per_hour} icon={Activity} color="indigo" />
+            <StatBox label="AVG OPERATION TIME" value={stats.avg_wait} icon={Hourglass} color="blue" />
           </SimpleGrid>
           
           {/* ✅ 2. MAIN CONTENT AREA */}
@@ -337,17 +391,17 @@ export default function FacilityHubPage() {
       </main>
 
       {/* ✅ Add/Edit Modal (ฉบับสมบูรณ์) */}
+      {/* Inside FacilityHubPage return statement */}
       <AddUnitModal 
         opened={addModalOpened} 
         onClose={closeAdd} 
         hubId={hubId} 
-        onSuccess={fetchData} 
+        onSuccess={refreshAll} // Changed from fetchData to refreshAll to match your function name
         type={modalType} 
+        onDelete={handleDelete} // 👈 PASS THE LOGIC HERE
         data={
-          // 1. Check if we are editing the Main Hub
           editingId === mainSection?.id 
             ? mainSection 
-            // 2. Otherwise, check if it's a Counter or a Sub-Section
             : (modalType === 'COUNTER' 
                 ? counter.find(c => c.id === editingId) 
                 : listData.find(u => u.id === editingId))
@@ -384,7 +438,7 @@ function QRModal({ opened, onClose, hubId, hubName }) {
   );
 }
 
-function AddUnitModal({ opened, onClose, data, hubId, onSuccess, type }) {
+function AddUnitModal({ opened, onClose, data, hubId, onSuccess, type, onDelete }) {
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -436,37 +490,13 @@ function AddUnitModal({ opened, onClose, data, hubId, onSuccess, type }) {
     } finally { 
       setSubmitting(false); 
     }
-  };
-
-  const handleDelete = async (id, type) => {
-    const label = type === 'COUNTER' ? 'Counter' : 'Sector';
-    if (!window.confirm(`Are you sure you want to delete this ${label}?`)) return;
-
-    try {
-      const api = type === 'COUNTER' ? API_COUNTER : API_SECTION;
-      const res = await fetch(`${api}?id=${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      const result = await res.json();
-      if (result.success) {
-        // Refresh the data to update the UI
-        fetchData();
-      } else {
-        alert(result.message || "Failed to delete");
-      }
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("An error occurred while deleting.");
-    }
   };  
 
   const handleGenerateCode = async () => {
     if (!data?.id || cooldown > 0) return;
     setGenLoading(true);
     try {
-      const res = await fetch(`${API_INVITE}?id=${data.id}`, {
+      const res = await fetch(`${API_OTHER}?id=${data.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
