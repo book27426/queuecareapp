@@ -201,10 +201,10 @@ export default function FacilityHubPage() {
 
           {/* ✅ 1. OVERALL STATISTICS (Mock Data) */}
           <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
-            <StatBox label="TOTAL QUEUES" value={stats.total_today} icon={UserPlus} color="teal" />
-            <StatBox label="NEW QUEUES /H" value={stats.load_per_hour} icon={ArchiveRestore} color="indigo" />
-            <StatBox label="DONE QUEUES /H" value={stats.load_per_hour} icon={Activity} color="indigo" />
-            <StatBox label="AVG OPERATION TIME" value={stats.avg_wait} icon={Hourglass} color="blue" />
+            <StatBox label="TOTAL QUEUES" value={stats.queues_remaining} icon={UserPlus} color="teal" />
+            <StatBox label="NEW QUEUES /H" value={stats.increase_rate_per_hour} icon={ArchiveRestore} color="indigo" />
+            <StatBox label="DONE QUEUES /H" value={stats.clear_rate_per_hour} icon={Activity} color="indigo" />
+            <StatBox label="AVG OPERATION TIME" value={stats.est_avg_operation_time_minutes} icon={Hourglass} color="blue" />
           </SimpleGrid>
           
           {/* ✅ 2. MAIN CONTENT AREA */}
