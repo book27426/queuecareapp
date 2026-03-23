@@ -204,7 +204,7 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
     if (!data?.id || cooldown > 0) return;
     setGenerating(true);
     try {
-      const res = await fetch(`${API_BASE}/invite_code?id=${data.id}`, {
+      const res = await fetch(`${API_BASE}/other?id=${data.id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
