@@ -322,13 +322,13 @@ function FacilityCard({ hospital, onSelect }) {
             <Paper withBorder p="xs" radius="lg" className="flex-1 bg-slate-50/50">
               <Stack gap={2} align="center">
                 <Text size="10px" fw={800} c="dimmed">WAITING</Text>
-                <Group gap={4}><Clock size={14} color="#2563EB" /><Text size="sm" fw={800}>{hospital.default_wait_time}m</Text></Group>
+                <Group gap={4}><Clock size={14} color="#2563EB" /><Text size="sm" fw={800}>{hospital.queue_count}m</Text></Group>
               </Stack>
             </Paper>
             <Paper withBorder p="xs" radius="lg" className="flex-1 bg-blue-50/30 border-blue-100">
               <Stack gap={2} align="center">
                 <Text size="10px" fw={800} c="blue.6">PREDICTED</Text>
-                <Group gap={4}><Activity size={14} color="#2563EB" /><Text size="sm" fw={800} c="blue.8">{hospital.predicted_time}m</Text></Group>
+                <Group gap={4}><Activity size={14} color="#2563EB" /><Text size="sm" fw={800} c="blue.8">{hospital.estimated_wait_minutes}m</Text></Group>
               </Stack>
             </Paper>
           </Group>

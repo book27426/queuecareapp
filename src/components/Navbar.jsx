@@ -151,7 +151,7 @@ export default function Navbar() {
   const handleStaffLogin = async () => {
     setError(null);
     setIsLoading(true);
-    try {
+    // try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
 
@@ -185,11 +185,11 @@ export default function Navbar() {
         setError("คุณไม่มีสิทธิ์เข้าถึงส่วนของเจ้าหน้าที่");
         await signOut(auth);
       }
-    } catch (err) {
-      setError("การเข้าสู่ระบบล้มเหลว");
-    } finally {
-      setIsLoading(false);
-    }
+    // } catch (err) {
+    //   setError("การเข้าสู่ระบบล้มเหลว");
+    // } finally {
+    //   setIsLoading(false);
+    // }
   };
 
   const handleUpdateProfile = async () => {
