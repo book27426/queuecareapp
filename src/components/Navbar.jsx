@@ -280,7 +280,7 @@ export default function Navbar() {
           {currentUser ? (
             <Group gap="xs">
               {currentUser.role === 'staff' ? (
-                <Button onClick={() => router.push('/facilities')} radius="xl" color="orange" variant="light" fw={800} size="sm" leftSection={<LayoutDashboard size={16} />}>Dashboard</Button>
+                <Button onClick={() => router.push('/facilities')} radius="xl" color="orange" variant="light" fw={800} size="sm" leftSection={<LayoutDashboard size={16} />}>Console</Button>
               ) : (
                 <Group gap={8}>
                   {/* ✅ Single Smart Button */}

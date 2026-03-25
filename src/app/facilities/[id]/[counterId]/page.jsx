@@ -200,18 +200,10 @@ export default function CounterWorkstationPage() {
                       </div>
                     </Box>
 
-                    {/* ✅ จัดกลุ่มปุ่มให้อยู่กึ่งกลางหน้าจออย่างสมดุล */}
-                    {/* ✅ DYNAMIC CONTROL PANEL */}
                     <Stack gap="xl" className="w-full max-w-md mx-auto mt-8">
                       <AnimatePresence mode="wait">
                         {!currentQueue ? (
-                          /* --- STATE A: IDLE (No Patient) --- */
-                          <motion.div
-                            key="idle-state"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                          >
+                          <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                             <Button 
                               onClick={() => handleQueueAction('CALL_NEXT')}
                               disabled={waitingList.length === 0 || isSyncing}
