@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from 'next/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -17,12 +18,15 @@ import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 
 export default function JoinQueuePage() {
+  const searchParams = useSearchParams();
+  const sectionIdFromUrl = searchParams.get('id');
+
   const router = useRouter();
   const [opened, { open, close }] = useDisclosure(false);
 
   // --- 📊 States ---
   const [facilities, setFacilities] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(sectionIdFromUrl || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -42,6 +46,19 @@ export default function JoinQueuePage() {
       setIsPhoneUser(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (sectionIdFromUrl && !loading && facilities.length > 0) {
+      const autoSelected = facilities.find(f => f.id.toString() === sectionIdFromUrl);
+      if (autoSelected) {
+        setSelectedHospital(autoSelected);
+        setStep('form');
+        open(); 
+      } else {
+        setError("ไม่พบหน่วยงานที่คุณสแกน กรุณาเลือกจากรายการด้านล่าง");
+      }
+    }
+  }, [sectionIdFromUrl, facilities, open]);
 
   // --- 📡 Fetch Facilities ---
   const fetchSections = useCallback(async (nameQuery = "") => {
@@ -71,8 +88,10 @@ export default function JoinQueuePage() {
 
   // Initial load
   useEffect(() => {
-    fetchSections(""); 
-  }, [fetchSections]);
+    if (!sectionIdFromUrl) {
+      fetchSections(""); 
+    }
+  }, [fetchSections, sectionIdFromUrl]);
 
   // Search Debounce
   useEffect(() => {

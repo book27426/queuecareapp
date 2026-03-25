@@ -415,7 +415,7 @@ export default function FacilityHubPage() {
 
 // --- 🛠️ MODAL COMPONENT ---
 function QRModal({ opened, onClose, hubId, hubName }) {
-  const bookingUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${hubId}` : '';
+  const bookingUrl = typeof window !== 'undefined' ? `${window.location.origin}/join?id=${hubId}` : '';
   const handleCopy = () => { navigator.clipboard.writeText(bookingUrl); alert("Copied!"); };
 
   return (
