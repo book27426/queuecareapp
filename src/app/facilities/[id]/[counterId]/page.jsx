@@ -12,7 +12,6 @@ import {
   CheckCircle, UserX, User, Phone, Layers, Clock, Send, X, ArrowLeft,
   Info, Activity, ClipboardList, UserCheck, PlayCircle
 } from 'lucide-react';
-import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -134,7 +133,6 @@ export default function CounterWorkstationPage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      <Navbar user={{ name: "OPERATOR", role: "Staff" }} />
       
       <main className="flex-1 py-8 max-w-[1750px] mx-auto w-full px-6">
         <Grid gutter={40} align="stretch">

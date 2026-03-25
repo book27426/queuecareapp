@@ -11,7 +11,6 @@ import {
   UserX, User, Phone, Layers, Clock, Send, X, ArrowRight, Play, ArrowLeft,
   CheckCircle2, Activity, ClipboardList, TrendingUp, Search, Info
 } from 'lucide-react';
-import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -70,7 +69,6 @@ export default function CenterTerminalPage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      <Navbar user={{ name: `CENTER-${id}`, role: "Center Operator" }} />
 
       <main className="flex-1 p-6 lg:p-10 max-w-[1800px] mx-auto w-full z-10">
         <Stack gap="xl">

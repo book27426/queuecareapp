@@ -5,7 +5,6 @@ import {
   Container, Box, Text, Stack, Group, SimpleGrid, Title, Button, 
   Paper, ThemeIcon, Badge, ActionIcon, SegmentedControl, Center, Loader, Alert 
 } from '@mantine/core';
-import Navbar from "@/components/Navbar"; 
 import { 
   Ticket, Clock, Hash, Trash2, AlertCircle, RefreshCw,
   Calendar, ChevronRight, Activity, Building2
@@ -179,7 +178,6 @@ export default function MyQueuePage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      <Navbar />
 
       <main className="flex-1 py-8 lg:py-16">
         <Container size="xl">

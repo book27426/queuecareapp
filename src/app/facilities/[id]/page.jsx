@@ -11,12 +11,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { 
   Plus, Pencil, X, ArrowRight, Users, ArrowLeft, Clock, 
   Save, Building2, Camera, Timer, UserPlus, Hourglass, Activity, 
-  MonitorPlay, QrCode, Copy, Download , Trash2, ArchiveRestore
+  MonitorPlay, QrCode, Copy, Download , Trash2, ArchiveRestore, ImageIcon, Check
 }from 'lucide-react';
-import Navbar from "@/components/Navbar";
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
+import { toBlob } from 'html-to-image'; // Import this at the top
 
 // ✅ API Endpoints
 const API_SECTION = "https://queuecaredev.vercel.app/api/v1/section";
@@ -28,6 +28,7 @@ export default function FacilityHubPage() {
   const params = useParams();
   const router = useRouter(); 
   const hubId = params.id;
+  const [qrConfig, setQrConfig] = useState({ url: '', title: '', subtext: '' });
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -48,6 +49,25 @@ export default function FacilityHubPage() {
   const [modalType, setModalType] = useState('SECTION');
 
   const isRedirecting = useRef(false);
+
+  const openConsoleQr = (counter) => {
+    const consoleUrl = `${window.location.origin}/facilities/${hubId}/${counter.id}`;
+    setQrConfig({
+      url: consoleUrl,
+      title: `Counter ${counter.name}`,
+      subtext: "Scan to open this station's console"
+    });
+    openQr();
+  };
+
+  const openRegistrationQr = () => {
+    setQrConfig({
+      url: `${window.location.origin}/join?id=${hubId}`,
+      title: "Registration",
+      subtext: "Scan to join the queue"
+    });
+    openQr();
+  };
 
   // ✅ 1. Fetch Static Data (Run once on load)
   const fetchStaticData = useCallback(async () => {
@@ -144,7 +164,6 @@ export default function FacilityHubPage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] antialiased flex flex-col">
-      <Navbar />
       
        <main className="flex-1 py-10 max-w-[1750px] mx-auto w-full px-6 lg:px-10">
         <Stack gap={40}>
@@ -160,7 +179,7 @@ export default function FacilityHubPage() {
             </Stack>
 
             <Group gap="md">
-              <Button variant="light" color="teal" radius="xl" size="lg" h={60} leftSection={<QrCode size={20}/>} onClick={openQr} className="font-bold">QR CODE</Button>
+              <Button variant="light" color="teal" radius="xl" size="lg" h={60} leftSection={<QrCode size={20}/>} onClick={openRegistrationQr} className="font-bold">QR CODE</Button>
               <Button variant="light" color="indigo" radius="xl" size="lg" h={60} leftSection={<MonitorPlay size={20}/>} onClick={() => router.push(`/facilities/${hubId}/dashboard`)} className="font-bold">TV DISPLAY</Button>
               <Button variant="light" color="blue" radius="xl" size="lg" h={60} leftSection={<Users size={20}/>} onClick={fetchStaffData} className="font-bold">STAFFS</Button>
               <Button 
@@ -263,10 +282,13 @@ export default function FacilityHubPage() {
                                   />
                                 </Box>
                                 <Group gap={4}> {/* gap={4} makes them very close */}
+                                  <ActionIcon variant="light" color="teal" radius="xl" size="xl" onClick={openConsoleQr}>
+                                    <QrCode size={18}/>
+                                  </ActionIcon>
                                   <ActionIcon variant="light" color="indigo" radius="xl" size="xl" onClick={() => { setEditingId(c.id); setModalType('COUNTER'); openAdd(); }}>
                                     <Pencil size={18}/>
                                   </ActionIcon>
-                                  <ActionIcon variant="subtle" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
+                                  <ActionIcon variant="light" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
                                     <Trash2 size={18}/>
                                   </ActionIcon>
                                 </Group>
@@ -408,30 +430,95 @@ export default function FacilityHubPage() {
         } 
       />
       <StaffModal opened={staffModalOpened} onClose={closeStaff} staffs={staffs} />
-      <QRModal opened={qrModalOpened} onClose={closeQr} hubId={hubId} hubName={mainSection?.name} />
+      <QRModal 
+        opened={qrModalOpened} 
+        onClose={closeQr} 
+        url={qrConfig.url} 
+        title={qrConfig.title} 
+        subtext={qrConfig.subtext} 
+      />
     </Box>
   );
 }
 
 // --- 🛠️ MODAL COMPONENT ---
-function QRModal({ opened, onClose, hubId, hubName }) {
-  const bookingUrl = typeof window !== 'undefined' ? `${window.location.origin}/join?id=${hubId}` : '';
-  const handleCopy = () => { navigator.clipboard.writeText(bookingUrl); alert("Copied!"); };
+function QRModal({ opened, onClose, url, title, subtext }) {
+  const qrRef = useRef(null);
+  const [copiedImg, setCopiedImg] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(url);
+    alert("Link copied!");
+  };
+
+  const handleCopyImage = async () => {
+    if (!qrRef.current) return;
+    
+    try {
+      // Convert the div containing the QR to a blob
+      const blob = await toBlob(qrRef.current, { 
+        backgroundColor: '#ffffff',
+        pixelRatio: 2 // Higher quality
+      });
+      
+      const item = new ClipboardItem({ "image/png": blob });
+      await navigator.clipboard.write([item]);
+      
+      setCopiedImg(true);
+      setTimeout(() => setCopiedImg(false), 2000); // Reset icon after 2s
+    } catch (err) {
+      console.error("Image copy failed", err);
+      alert("Failed to copy image. Your browser might not support this.");
+    }
+  };
 
   return (
     <Modal opened={opened} onClose={onClose} centered radius={45} size="md" padding={40} withCloseButton={false}>
       <Stack align="center" gap="xl">
         <Stack gap={4} align="center">
-          <Title order={2} className="text-3xl font-black uppercase text-[#1E293B]" fs="italic">Registration <span className="text-blue-600">QR.</span></Title>
-          <Text c="dimmed" fw={800} tt="uppercase" size="xs" className="tracking-widest">Scan to join the queue</Text>
+          <Title order={2} className="text-3xl font-black uppercase text-[#1E293B]" fs="italic">
+            {title} <span className="text-blue-600">QR.</span>
+          </Title>
+          <Text c="dimmed" fw={800} tt="uppercase" size="xs" className="tracking-widest">{subtext}</Text>
         </Stack>
-        <Paper p={30} radius={40} withBorder className="bg-slate-50 shadow-inner">
-           {typeof window !== 'undefined' && <QRCodeSVG value={bookingUrl} size={220} level="H" includeMargin={true} />}
+        
+        {/* ✅ The Ref is attached here */}
+        <Paper ref={qrRef} p={30} radius={40} withBorder className="bg-white shadow-inner">
+           {typeof window !== 'undefined' && <QRCodeSVG value={url} size={220} level="H" includeMargin={true} />}
         </Paper>
+
         <Stack gap="xs" w="100%">
-          <Text ta="center" size="sm" fw={800} c="dimmed" fs="italic">{hubName}</Text>
-          <Button variant="light" color="blue" radius="xl" size="lg" leftSection={<Copy size={18}/>} onClick={handleCopy}>COPY LINK</Button>
-          <Button variant="subtle" color="gray" radius="xl" onClick={onClose} className="font-bold">CLOSE</Button>
+          {/* ✅ NEW: COPY IMAGE BUTTON */}
+          <Button 
+            variant="filled" 
+            color={copiedImg ? "teal" : "indigo"} 
+            radius="xl" 
+            size="lg" 
+            h={54}
+            leftSection={copiedImg ? <Check size={18}/> : <ImageIcon size={18}/>} 
+            onClick={handleCopyImage}
+            className="font-black italic transition-all"
+          >
+            {copiedImg ? "IMAGE COPIED!" : "COPY QR IMAGE"}
+          </Button>
+
+          {/* EXISTING: COPY LINK BUTTON */}
+          <Button 
+            variant="light" 
+            color="blue" 
+            radius="xl" 
+            size="lg" 
+            h={54}
+            leftSection={<Copy size={18}/>} 
+            onClick={handleCopyLink}
+            className="font-bold"
+          >
+            COPY LINK
+          </Button>
+
+          <Button variant="subtle" color="gray" radius="xl" onClick={onClose} className="font-bold mt-2">
+            CLOSE
+          </Button>
         </Stack>
       </Stack>
     </Modal>

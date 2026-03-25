@@ -11,7 +11,6 @@ import {
   Plus, Pencil, X, RefreshCw, ArrowRight, Building2, 
   Search, AlertCircle, UserPlus, Users, Trash2, Save, Camera
 } from 'lucide-react';
-import Navbar from "@/components/Navbar";
 
 const API_BASE = "https://queuecaredev.vercel.app/api/v1/section";
 const API_STAFF = "https://queuecaredev.vercel.app/api/v1/staff";
@@ -72,7 +71,6 @@ export default function StaffManagementPage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
-      <Navbar />
       <Container size="xl" className="py-12">
         <Stack gap={40}>
           <Group justify="space-between" align="flex-end">

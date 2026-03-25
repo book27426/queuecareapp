@@ -25,6 +25,8 @@ export default function Navbar() {
   const [loginOpened, { open: openLogin, close: closeLogin }] = useDisclosure(false);
   const [profileOpened, { open: openProfile, close: closeProfile }] = useDisclosure(false);
 
+  
+
   const requestLock = useRef(false);
   const verifyLock = useRef(false);
   const lastVerifyTime = useRef(0);
@@ -35,7 +37,8 @@ export default function Navbar() {
   const [otpTicket, setOtpTicket] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); 
   const [otpFromDb, setOtpFromDb] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -63,6 +66,26 @@ export default function Navbar() {
       setCurrentUser(null);
     }
   }, []);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    const checkAutoLogin = () => {
+      const staffEmail = localStorage.getItem('staff_email');
+      const userPhone = localStorage.getItem('user_phone');
+      const isAuth = !!(staffEmail || userPhone);
+
+      const isRoot = pathname === '/';
+      const isLocalRoot = isRoot;
+      const isQueue = pathname.startsWith('/myqueue') || pathname.startsWith('/join')
+
+      if (!isLocalRoot && !isAuth && mounted && !isQueue) {
+        openLogin();
+      }
+    };
+
+    checkAutoLogin();
+  }, [pathname, mounted, openLogin]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, syncAuth);
@@ -135,7 +158,11 @@ export default function Navbar() {
 
         setCurrentUser({ name: phone, image: null, role: 'user' });
         handleCloseModal();
-        router.push('/myqueue');
+        if (!pathname.startsWith('/myqueue')&&!pathname.startsWith('/join')) {
+          window.location.href = '/myqueue';
+        }else{
+          window.location.reload();
+        }
       } else {
         setError(result.message || "รหัส OTP ไม่ถูกต้อง");
         verifyLock.current = false;
@@ -151,7 +178,7 @@ export default function Navbar() {
   const handleStaffLogin = async () => {
     setError(null);
     setIsLoading(true);
-    // try {
+    try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await result.user.getIdToken();
 
@@ -180,16 +207,21 @@ export default function Navbar() {
         });
 
         handleCloseModal();
-        router.push('/facilities');
+
+        if (!pathname.startsWith('/facilities')) {
+          window.location.href = '/facilities';
+        }else{
+          window.location.reload();
+        }
       } else {
         setError("คุณไม่มีสิทธิ์เข้าถึงส่วนของเจ้าหน้าที่");
         await signOut(auth);
       }
-    // } catch (err) {
-    //   setError("การเข้าสู่ระบบล้มเหลว");
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    } catch (err) {
+      setError("การเข้าสู่ระบบล้มเหลว");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateProfile = async () => {
@@ -314,72 +346,100 @@ export default function Navbar() {
 
           <Box className="px-6 pb-12 pt-24 sm:px-14 sm:pt-28">
             <AnimatePresence mode="wait">
-              {loginStep === 'phone' ? (
-                <motion.div key="phone" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
+              {/* 1. STAFF ONLY VIEW: If path starts with /facilities */}
+              {pathname.startsWith('/facilities') ? (
+                <motion.div key="staff-only" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <Stack gap={44}>
-                    <Stack gap={12} align="center" className="text-center">
-                      <ThemeIcon size={84} radius="32px" color="blue" variant="light" className="shadow-inner border border-blue-50">
-                        <Smartphone size={38} />
+                    <Stack gap={12} align="center">
+                      <ThemeIcon size={84} radius="32px" color="blue" variant="light">
+                        <ShieldCheck size={38} />
                       </ThemeIcon>
-                      <Stack gap={4}>
-                        <Title order={2} className="text-3xl font-black italic tracking-tighter text-[#1E293B]">Welcome.</Title>
-                        <Text size="sm" c="dimmed" fw={600}>ระบุเบอร์โทรศัพท์เพื่อเข้าถึงระบบคิว</Text>
-                      </Stack>
+                      <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Staff Login</Title>
+                      <Text size="sm" c="dimmed" fw={600}>กรุณาเข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่</Text>
                     </Stack>
-                    <Stack gap="xl">
-                      <TextInput
-                        label={<Text size="xs" fw={900} c="dimmed" className="tracking-widest mb-1 uppercase">Phone Number</Text>}
-                        placeholder="08XXXXXXXX" size="xl" radius="xl" maxLength={10}
-                        value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                        classNames={{ input: 'bg-slate-50 border-transparent focus:bg-white font-bold h-16 text-center text-lg' }}
-                      />
-                      {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18} />} className="py-2 font-bold">{error}</Alert>}
-                      <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg hover:translate-y-[-2px] transition-all">REQUEST OTP</Button>
-                    </Stack>
-
-                    {/* ✅ STAFF LOGIN BUTTON: */}
-                    <Stack gap="md">
-                      <Divider label={<Text size="xs" fw={800} c="dimmed" className="tracking-widest uppercase">Staff Portal</Text>} labelPosition="center" />
-                      <UnstyledButton onClick={handleStaffLogin} className="group">
-                        <Flex justify="center" align="center" gap={12} className="py-4 rounded-2xl border-2 border-slate-50 group-hover:bg-slate-50 group-hover:border-blue-100 transition-all">
-                          <ShieldCheck size={20} className="text-blue-600" /><Text size="xs" fw={900} className="tracking-widest">SIGN IN AS STAFF</Text>
-                        </Flex>
-                      </UnstyledButton>
-                    </Stack>
+                    
+                    <Button 
+                      fullWidth size="xl" radius="xl" color="blue" h={68} 
+                      onClick={handleStaffLogin} loading={isLoading}
+                      leftSection={<ShieldCheck size={20} />}
+                      className="shadow-2xl shadow-blue-500/30 font-black italic text-lg"
+                    >
+                      SIGN IN AS STAFF
+                    </Button>
+                    {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18} />}>{error}</Alert>}
                   </Stack>
                 </motion.div>
               ) : (
-                <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                  <Stack gap={44} align="center">
-                    <Stack gap={16} align="center" className="text-center">
-                      <ThemeIcon size={84} radius="32px" color="blue" variant="light" className="shadow-inner border border-blue-50">
-                        <Lock size={38} />
-                      </ThemeIcon>
-                      <Stack gap={4}>
-                        <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Verify Identity</Title>
-                        <Text size="sm" c="dimmed" fw={600}>รหัสส่งไปที่เบอร์ <span className="text-blue-600 font-extrabold">{phone}</span></Text>
+                /* 2. USER LOGIN VIEW (Main Page, Join, MyQueue, etc.) */
+                <motion.div key="user-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  {loginStep === 'phone' ? (
+                    /* --- PHONE STEP --- */
+                    <Stack gap={44}>
+                      <Stack gap={12} align="center">
+                        <ThemeIcon size={84} radius="32px" color="blue" variant="light">
+                          <Smartphone size={38} />
+                        </ThemeIcon>
+                        <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Welcome.</Title>
+                        <Text size="sm" c="dimmed" fw={600}>ระบุเบอร์โทรศัพท์เพื่อเข้าถึงระบบคิว</Text>
+                      </Stack>
+
+                      <Stack gap="xl">
+                        <TextInput
+                          label={<Text size="xs" fw={900} c="dimmed" className="tracking-widest mb-1 uppercase">Phone Number</Text>}
+                          placeholder="08XXXXXXXX" size="xl" radius="xl" maxLength={10}
+                          value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                          classNames={{ input: 'bg-slate-50 border-transparent focus:bg-white font-bold h-16 text-center text-lg' }}
+                        />
+                        <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg">REQUEST OTP</Button>
+                      </Stack>
+
+                      {pathname === '/' && (
+                        <Stack gap="md">
+                          <Divider label={<Text size="xs" fw={800} c="dimmed" className="tracking-widest uppercase">Staff Portal</Text>} labelPosition="center" />
+                          <UnstyledButton onClick={handleStaffLogin} className="group">
+                            <Flex justify="center" align="center" gap={12} className="py-4 rounded-2xl border-2 border-slate-50 group-hover:bg-slate-50 group-hover:border-blue-100 transition-all">
+                              <ShieldCheck size={20} className="text-blue-600" />
+                              <Text size="xs" fw={900} className="tracking-widest">SIGN IN AS STAFF</Text>
+                            </Flex>
+                          </UnstyledButton>
+                        </Stack>
+                      )}
+                      {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18} />} className="py-2 font-bold">{error}</Alert>}
+                    </Stack>
+                  ) : (
+                    /* --- OTP STEP (RESTORED) --- */
+                    <Stack gap={44} align="center">
+                      <Stack gap={16} align="center" className="text-center">
+                        <ThemeIcon size={84} radius="32px" color="blue" variant="light">
+                          <Lock size={38} />
+                        </ThemeIcon>
+                        <Stack gap={4}>
+                          <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Verify Identity</Title>
+                          <Text size="sm" c="dimmed" fw={600}>รหัสส่งไปที่เบอร์ <span className="text-blue-600 font-extrabold">{phone}</span></Text>
+                        </Stack>
+                      </Stack>
+
+                      <Stack gap="xl" w="100%" align="center">
+                        <PinInput
+                          length={6} size="md" radius="md" value={otpValue} onChange={setOtpValue} autoFocus
+                          classNames={{ input: 'w-10 h-14 xs:w-12 xs:h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-slate-100 focus:border-blue-500 font-black text-2xl shadow-sm' }}
+                          gap="xs"
+                        />
+                        {otpFromDb && <Badge variant="light" color="blue" size="lg" radius="md" className="py-4 font-black tracking-widest border border-blue-100">DEBUG: {otpFromDb}</Badge>}
+                        <Stack gap="xl" w="100%" pt={10}>
+                          <Button
+                            type="button" fullWidth size="xl" radius="xl" color="blue" h={72}
+                            onClick={(e) => handleVerifyOTP(e)} loading={isVerifying} disabled={isVerifying}
+                            className="shadow-2xl shadow-blue-500/40 font-black italic text-xl"
+                          >CONFIRM VERIFY</Button>
+                          <Button variant="subtle" color="gray" size="sm" radius="xl" onClick={handleRequestOTP} disabled={cooldown > 0} className="font-bold">
+                            {cooldown > 0 ? `RESEND IN ${cooldown}S` : "RESEND OTP CODE"}
+                          </Button>
+                        </Stack>
+                        {error && <Alert color="red" variant="light" radius="xl" icon={<AlertCircle size={18} />}>{error}</Alert>}
                       </Stack>
                     </Stack>
-                    <Stack gap="xl" w="100%" align="center">
-                      {/* ✅ FIX OFF-SCREEN*/}
-                      <PinInput
-                        length={6} size="md" radius="md" value={otpValue} onChange={setOtpValue} autoFocus
-                        classNames={{ input: 'w-10 h-14 xs:w-12 xs:h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-slate-100 focus:border-blue-500 font-black text-2xl shadow-sm' }}
-                        gap="xs"
-                      />
-                      {otpFromDb && <Badge variant="light" color="blue" size="lg" radius="md" className="py-4 font-black tracking-widest border border-blue-100">DEBUG: {otpFromDb}</Badge>}
-                      <Stack gap="xl" w="100%" pt={10}>
-                        <Button
-                          type="button" fullWidth size="xl" radius="xl" color="blue" h={72}
-                          onClick={(e) => handleVerifyOTP(e)} loading={isVerifying} disabled={isVerifying}
-                          className="shadow-2xl shadow-blue-500/40 font-black italic text-xl"
-                        >CONFIRM VERIFY</Button>
-                        <Button variant="subtle" color="gray" size="sm" radius="xl" onClick={handleRequestOTP} disabled={cooldown > 0} className="font-bold">
-                          {cooldown > 0 ? `RESEND IN ${cooldown}S` : "RESEND OTP CODE"}
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </Stack>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -13,8 +13,6 @@ import {
   Phone, PlusCircle, AlertCircle 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-import Navbar from "@/components/Navbar";
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 
 export default function JoinQueuePage() {
@@ -140,7 +138,6 @@ export default function JoinQueuePage() {
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
-      <Navbar />
 
       <main className="py-12 md:py-20">
         <Container size="xl">

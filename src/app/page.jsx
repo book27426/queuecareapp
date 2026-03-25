@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowRight, Ticket, Clock, ShieldCheck, Globe 
 } from 'lucide-react';
-import Navbar from "@/components/Navbar";
 import { 
   Box, Text, Stack, Title, Container, Button, ThemeIcon, SimpleGrid 
 } from '@mantine/core';
@@ -49,7 +48,6 @@ export default function IndexPage() {
 
   return (
     <Box className="min-h-screen bg-[#FDFDFD] flex flex-col antialiased overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-      <Navbar user={null} /> 
 
       <main className="flex-1 z-10">
         {/* SECTION 1: HERO */}
