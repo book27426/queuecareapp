@@ -47,8 +47,7 @@ export const PaperTicketContent = ({ queueNumber, hospitalName }) => (
         strokeWidth="1" 
       />
       <text x="250" y="80" textAnchor="middle" fontWeight="900" style={{ fontSize: '18px', fill: '#94A3B8', textTransform: 'uppercase', fontFamily: 'sans-serif' }}>คิวของคุณคือ</text>
-      <text x="250" y="115" textAnchor="middle" fontWeight="900" style={{ fontSize: '26px', fill: '#3B82F6', fontFamily: 'sans-serif' }}>{hospitalName}</text>
-      <text x="250" y="240" textAnchor="middle" fontWeight="900" className="italic" style={{ fontSize: '120px', fill: '#1E293B', letterSpacing: '-0.05em', fontFamily: 'sans-serif' }}>{queueNumber}</text>
+      <text x="250" y="200" textAnchor="middle" fontWeight="900" className="italic" style={{ fontSize: '120px', fill: '#1E293B', letterSpacing: '-0.05em', fontFamily: 'sans-serif' }}>{queueNumber}</text>
       <line x1="100" y1="280" x2="400" y2="280" stroke="#E5E7EB" strokeWidth="2" strokeDasharray="8 8" />
     </svg>
   </motion.div>

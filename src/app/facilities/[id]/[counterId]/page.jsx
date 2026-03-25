@@ -144,8 +144,8 @@ export default function CounterWorkstationPage() {
                 <UnstyledButton onClick={() => router.back()} className="text-blue-600 font-black uppercase tracking-widest flex items-center gap-2 hover:opacity-70 transition-all">
                   <ArrowLeft size={18} /> HUB CONSOLE
                 </UnstyledButton>
-                <Badge size="xl" radius="lg" color="blue" variant="filled" className="h-12 px-8 font-black italic uppercase shadow-lg">
-                  {counterInfo?.name} • {currentQueue ? "SESSION ACTIVE" : "STATION IDLE"}
+                <Badge size="xl" radius="lg" color={currentQueue ? "blue" : "gray"} variant={currentQueue ? "filled" : "light"} className="h-12 px-8 font-black italic uppercase shadow-lg">
+                  {"Counter "+counterInfo?.name}  • {currentQueue ? "SESSION ACTIVE" : "STATION IDLE"}
                 </Badge>
               </Group>
 
