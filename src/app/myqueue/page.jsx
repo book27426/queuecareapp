@@ -132,7 +132,9 @@ export default function MyQueuePage() {
       const url = `https://queuecaredev.vercel.app/api/v1/queue?id=${queueId}`;
       const response = await fetch(url, {
         method: 'PUT',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
       });
 
       const result = await response.json();
