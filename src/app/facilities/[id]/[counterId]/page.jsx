@@ -355,7 +355,6 @@ export default function CounterWorkstationPage() {
                             {/* 2. Your updated Title (Always Blue) */}
                             <Title order={4} className="text-3xl font-black italic tracking-tighter text-blue-600">
                               #{item.number}
-                              #{item.id}
                             </Title>
                             
                             {/* 3. Your updated Text (Always Dark Slate) */}
@@ -365,7 +364,7 @@ export default function CounterWorkstationPage() {
                           </Stack>
                         
                           {/* 4. Your updated Badge (Always Light variant) */}
-                          <Button onClick={() => handleQueueAction('CALL_NEXT', item.id)} size="lg" radius="md" variant="blue" color="white" leftSection={<PlayCircle size={12} />} className="font-bold">
+                          <Button onClick={() => handleQueueAction('CALL_NEXT', null, item.id)} size="lg" radius="md" variant="blue" color="white" leftSection={<PlayCircle size={12} />} className="font-bold">
                             Recalled
                           </Button>
                         </Flex>
