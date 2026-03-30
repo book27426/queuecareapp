@@ -5,17 +5,20 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
   Box, Text, Title, Group, Stack, TextInput, Textarea, ScrollArea, Modal, Select, 
   Paper, ThemeIcon, Button, ActionIcon, Badge, Flex, Grid, Center, Loader, Alert,
-  UnstyledButton
+  UnstyledButton, CloseButton
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { 
   CheckCircle, UserX, User, Phone, Layers, Clock, Send, X, ArrowLeft,
-  Info, Activity, ClipboardList, UserCheck, PlayCircle
+  Search, Activity, ClipboardList, UserCheck, PlayCircle
 } from 'lucide-react';
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
 
+
+
 const API_COUNTER = "https://queuecaredev.vercel.app/api/v1/counter";
+const API_COUNTERSEARCH = "https://queuecaredev.vercel.app/api/v1/otp_verify";
 const API_QUEUE = "https://queuecaredev.vercel.app/api/v1/queue";
 
 export default function CounterWorkstationPage() {
@@ -29,8 +32,12 @@ export default function CounterWorkstationPage() {
 
   const [counterInfo, setCounterInfo] = useState(null);
   const [currentQueue, setCurrentQueue] = useState(null);
-  const [waitingList, setWaitingList] = useState([]);
+  const [calledList, setCalledList] = useState([]);
+  const [nextqueue, setNextQueueu] = useState([]);
   const [notes, setNotes] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch] = useDebouncedValue(searchQuery, 500);
 
   const [transferOptions, setTransferOptions] = useState([]); // To store the formatted list for Select
   const [targetSectionId, setTargetSectionId] = useState(null); // To store chosen value
@@ -52,7 +59,7 @@ export default function CounterWorkstationPage() {
     }
   }, []);
 
-  const fetchCounterData = useCallback(async (isSilent = false) => {
+  const fetchMainData = useCallback(async (isSilent = false) => {
     if (!isSilent) setFetchError(null);
     setIsSyncing(true);
     try {
@@ -65,23 +72,52 @@ export default function CounterWorkstationPage() {
       if (result.success) {
         setCounterInfo(result.data.counter);
         setCurrentQueue(result.data.current_queue);
-        setWaitingList(result.data.waiting_queues || []);
+        setNextQueueu(result.data.next_queues);
+        // NOTE: We don't setCalledList here anymore to avoid overwriting search results
       }
     } catch (err) {
       if (!isSilent) setFetchError("System sync failed.");
     } finally {
-      setLoading(false);
       setIsSyncing(false);
+      setLoading(false);
     }
   }, [counterId]);
 
-  useEffect(() => {
-    fetchCounterData();
-    const interval = setInterval(() => fetchCounterData(true), 30000);
-    return () => clearInterval(interval);
-  }, [fetchCounterData]);
+  // 2. Search Sync (Only Called Queues)
+  const searchCalledList = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const url = new URL(API_COUNTERSEARCH);
+      url.searchParams.append('id', counterId);
+      if (searchQuery) url.searchParams.append('search', searchQuery);
 
-  const handleQueueAction = async (actionType, transferSectionId = null) => {
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        setCalledList(result.data.called_queues || []);
+      }
+    } catch (err) {
+      console.error("Search failed", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [counterId, searchQuery]);
+
+  useEffect(() => {
+    fetchMainData();
+    const interval = setInterval(() => fetchMainData(true), 50000);
+    return () => clearInterval(interval);
+  }, [fetchMainData]);
+
+  useEffect(() => {
+    searchCalledList();
+  }, [debouncedSearch, searchCalledList]);
+
+  const handleQueueAction = async (actionType, transferSectionId = null, queueId = null) => {
     setIsSyncing(true);
 
     const body = {
@@ -91,9 +127,11 @@ export default function CounterWorkstationPage() {
       section_id: id
     };
 
+    let queue_id = currentQueue?.id
     switch (actionType) {
       case 'CALL_NEXT':
         body.status = "serving";
+        queue_id = queueId
         break;
       case 'FINISH':
         body.status = "complete";
@@ -106,11 +144,12 @@ export default function CounterWorkstationPage() {
         body.section_id = transferSectionId;
         break;
       default:
+        setIsSyncing(false);
         return;
     }
 
     try {
-      const res = await fetch(`${API_QUEUE}?id=${currentQueue?.id}`, {
+      const res = await fetch(`${API_QUEUE}?id=${queue_id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -121,6 +160,7 @@ export default function CounterWorkstationPage() {
         setNotes("");
         if (actionType === 'TRANSFER') closeTransfer();
         fetchCounterData(true);
+        searchCalledList();
       }
     } catch (e) {
       alert("System Error: Could not update queue.");
@@ -206,7 +246,7 @@ export default function CounterWorkstationPage() {
                           <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                             <Button 
                               onClick={() => handleQueueAction('CALL_NEXT')}
-                              disabled={waitingList.length === 0 || isSyncing}
+                              disabled={nextqueue.length === 0 || isSyncing}
                               fullWidth
                               size="xl" 
                               radius="28px" 
@@ -215,11 +255,11 @@ export default function CounterWorkstationPage() {
                               className="text-2xl font-black italic shadow-2xl shadow-blue-500/20 active:scale-95 transition-all"
                               leftSection={isSyncing ? <Loader size="sm" color="white" /> : <PlayCircle size={32} />}
                             >
-                              {waitingList.length > 0 ? "START NEXT QUEUE" : "NO PATIENTS IN LINE"}
+                              {nextqueue.length > 0 ? "START NEXT QUEUE" : "NO PATIENTS IN LINE"}
                             </Button>
-                            {waitingList.length > 0 && (
+                            {nextqueue.length > 0 && (
                               <Text size="xs" fw={900} c="blue" ta="center" mt="md" className="tracking-widest opacity-60">
-                                NEXT UP: #{waitingList[0]?.number}
+                                NEXT UP: #{nextqueue[0].number}
                               </Text>
                             )}
                           </motion.div>
@@ -283,8 +323,22 @@ export default function CounterWorkstationPage() {
               <Box p={40} className="bg-slate-50/50 border-b border-slate-100">
                 <Group justify="space-between">
                   <Stack gap={0}>
-                    <Title order={3} className="text-2xl font-black text-[#1E293B] uppercase italic">Waitlist</Title>
-                    <Text size="xs" fw={900} c="blue" className="tracking-widest">REAL-TIME FEED</Text>
+                    <Title order={3} className="text-2xl font-black text-[#1E293B] uppercase italic">Calledlist</Title>
+                    <TextInput 
+                      placeholder="Search called patients..." 
+                      leftSection={<Search size={16}/>} 
+                      radius="md" 
+                      value={searchQuery} 
+                      onChange={(e) => setSearchQuery(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          searchCalledList(); // Only trigger the search API
+                        }
+                      }}
+                      rightSection={
+                        isSyncing ? <Loader size="xs" /> : null
+                      }
+                    />
                   </Stack>
                   {isSyncing ? <Loader size="xs" color="blue" /> : <ThemeIcon size={44} radius="xl" variant="light" color="blue"><Layers size={22} /></ThemeIcon>}
                 </Group>
@@ -293,7 +347,7 @@ export default function CounterWorkstationPage() {
               <ScrollArea className="flex-1" p={25}>
                 <Stack gap="lg">
                   <AnimatePresence mode="popLayout">
-                    {waitingList.map((item) => (
+                    {calledList.map((item) => (
                       <motion.div key={item.number} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}>
                       <Paper p={24} radius="30px" withBorder className="bg-white border-slate-100 hover:bg-slate-50 transition-all">
                         <Flex justify="space-between" align="center">
@@ -308,11 +362,11 @@ export default function CounterWorkstationPage() {
                               {item.name}
                             </Text>
                           </Stack>
-
+                        
                           {/* 4. Your updated Badge (Always Light variant) */}
-                          <Badge size="lg" radius="md" variant="light" color="blue" leftSection={<Clock size={12} />} className="font-bold">
-                            Waiting
-                          </Badge>
+                          <Button onClick={() => handleQueueAction('CALL_NEXT', item.id)} size="lg" radius="md" variant="blue" color="white" leftSection={<PlayCircle size={12} />} className="font-bold">
+                            Recalled
+                          </Button>
                         </Flex>
                       </Paper>
                     </motion.div>
