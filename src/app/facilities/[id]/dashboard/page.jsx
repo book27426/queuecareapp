@@ -21,7 +21,10 @@ export default function FullScreenSignageDashboard() {
   const fetchQueueData = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`);
+      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
       const result = await response.json();
 
       if (result.success && result.data) {
