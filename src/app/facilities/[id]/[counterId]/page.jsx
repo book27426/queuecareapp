@@ -124,7 +124,7 @@ export default function CounterWorkstationPage() {
       next: true,
       queue_detail: notes || "",
       counter_id: counterId,
-      section_id: id
+      section_id: null
     };
 
     let queue_id = currentQueue?.id
