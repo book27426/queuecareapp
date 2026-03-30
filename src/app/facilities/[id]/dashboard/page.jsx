@@ -25,12 +25,13 @@ export default function FullScreenSignageDashboard() {
         method: 'GET',
         credentials: 'include',
       });
+
       const result = await response.json();
 
       if (result.success && result.data) {
         // Defensive mapping: ensure we always have an array
-        setActiveCalls(Array.isArray(result.data.serving) ? result.data.serving : []);
-        setNextInLine(Array.isArray(result.data.waiting) ? result.data.waiting : []);
+        setActiveCalls(Array.isArray(result.data.currently_serving) ? result.data.currently_serving : []);
+        setNextInLine(Array.isArray(result.data.recent_logs) ? result.data.recent_logs : []);
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -168,7 +169,7 @@ export default function FullScreenSignageDashboard() {
         <Grid.Col span={3}>
           <Group gap="sm" mb={20}>
             <ThemeIcon size={48} radius="xl" color="teal" variant="light"><MonitorPlay size={24} /></ThemeIcon>
-            <Title order={2} className="italic uppercase">Next <span className="text-teal-500">Up.</span></Title>
+            <Title order={2} className="italic uppercase">Already <span className="text-teal-500">Calling.</span></Title>
           </Group>
 
           <Paper radius="48px" withBorder className="h-[calc(100vh-200px)] overflow-hidden flex flex-col shadow-xl">
