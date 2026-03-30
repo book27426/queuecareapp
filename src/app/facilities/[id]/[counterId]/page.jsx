@@ -355,6 +355,7 @@ export default function CounterWorkstationPage() {
                             {/* 2. Your updated Title (Always Blue) */}
                             <Title order={4} className="text-3xl font-black italic tracking-tighter text-blue-600">
                               #{item.number}
+                              #{item.id}
                             </Title>
                             
                             {/* 3. Your updated Text (Always Dark Slate) */}
