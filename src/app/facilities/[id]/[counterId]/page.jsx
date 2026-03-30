@@ -148,7 +148,7 @@ export default function CounterWorkstationPage() {
         return;
     }
 
-    try {
+    // try {
       const res = await fetch(`${API_QUEUE}?id=${queue_id}`, {
         method: 'PUT',
         credentials: 'include',
@@ -159,14 +159,18 @@ export default function CounterWorkstationPage() {
       if (res.ok) {
         setNotes("");
         if (actionType === 'TRANSFER') closeTransfer();
-        fetchCounterData(true);
+        fetchMainData(true);
         searchCalledList();
+      } else {
+        const errorData = await res.json();
+        console.error("API Error:", errorData);
+        alert(`Failed: ${errorData.message || "Unknown error"}`);
       }
-    } catch (e) {
-      alert("System Error: Could not update queue.");
-    } finally {
-      setIsSyncing(false);
-    }
+    // } catch (e) {
+    //   alert("System Error: Could not update queue.");
+    // } finally {
+    //   setIsSyncing(false);
+    // }
   };
 
   if (loading) return <Center h="100vh" bg="#F8FAFC"><Loader color="blue" type="dots" size="xl" /></Center>;
@@ -245,7 +249,7 @@ export default function CounterWorkstationPage() {
                         {!currentQueue ? (
                           <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                             <Button 
-                              onClick={() => handleQueueAction('CALL_NEXT')}
+                              onClick={() => handleQueueAction('CALL_NEXT', null, null)}
                               disabled={nextqueue.length === 0 || isSyncing}
                               fullWidth
                               size="xl" 
@@ -274,7 +278,7 @@ export default function CounterWorkstationPage() {
                           >
                             <Group grow gap="xl">
                               <Button 
-                                onClick={() => handleQueueAction('FINISH')} 
+                                onClick={() => handleQueueAction('FINISH', null, null)} 
                                 color="teal" 
                                 radius="xl" 
                                 h={74} 
@@ -284,7 +288,7 @@ export default function CounterWorkstationPage() {
                                 FINISH
                               </Button>
                               <Button 
-                                onClick={() => handleQueueAction('NO_SHOW')} 
+                                onClick={() => handleQueueAction('NO_SHOW', null, null)} 
                                 color="red" 
                                 radius="xl" 
                                 h={74} 
@@ -390,7 +394,7 @@ export default function CounterWorkstationPage() {
 
           <Stack gap="xl">
             <Select label="Target Unit" placeholder="Select destination..." data={transferOptions} value={targetSectionId} onChange={setTargetSectionId} radius="xl" size="lg" classNames={{ input: "font-bold h-16 bg-slate-50" }} />
-            <Button fullWidth size="xl" radius="xl" color="blue" h={80} className="font-black italic" loading={isSyncing} disabled={!targetSectionId} onClick={() => handleQueueAction('TRANSFER', targetSectionId)}>
+            <Button fullWidth size="xl" radius="xl" color="blue" h={80} className="font-black italic" loading={isSyncing} disabled={!targetSectionId} onClick={() => handleQueueAction('TRANSFER', targetSectionId, null)}>
               CONFIRM TRANSFER
             </Button>
           </Stack>
