@@ -34,6 +34,7 @@ export default function CounterWorkstationPage() {
   const [currentQueue, setCurrentQueue] = useState(null);
   const [calledList, setCalledList] = useState([]);
   const [nextqueue, setNextQueueu] = useState([]);
+  const [sectionaccess, setSectionAccess] = useState([]);
   const [notes, setNotes] = useState("");
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,21 +44,22 @@ export default function CounterWorkstationPage() {
   const [targetSectionId, setTargetSectionId] = useState(null); // To store chosen value
 
   useEffect(() => {
-    const cachedData = localStorage.getItem('cached_sub_sections');
-    if (cachedData) {
-      try {
-        const sections = JSON.parse(cachedData);
-        // Mantine Select requires { value: string, label: string }
-        const formatted = sections.map(s => ({
-          value: s.id.toString(),
-          label: s.name
-        }));
-        setTransferOptions(formatted);
-      } catch (e) {
-        console.error("Error parsing sections", e);
-      }
+    if (sectionaccess && sectionaccess.length > 0) {
+      const formatted = sectionaccess.map(s => ({
+        // Ensure the id is a string for Mantine Select, 
+        // but check if the property name in your API is 'id' or 'section_id'
+        value: s.section_id?.toString() || s.id?.toString(), 
+        label: s.section_name || s.name
+      }));
+      setTransferOptions(formatted);
     }
-  }, []);
+  }, [sectionaccess]);
+
+  useEffect(() => {
+    if (!opened) {
+      setTargetSectionId(null);
+    }
+  }, [opened]);
 
   const fetchMainData = useCallback(async (isSilent = false) => {
     if (!isSilent) setFetchError(null);
@@ -73,6 +75,7 @@ export default function CounterWorkstationPage() {
         setCounterInfo(result.data.counter);
         setCurrentQueue(result.data.current_queue);
         setNextQueueu(result.data.next_queues);
+        setSectionAccess(result.data.section_access);
         // NOTE: We don't setCalledList here anymore to avoid overwriting search results
       }
     } catch (err) {
