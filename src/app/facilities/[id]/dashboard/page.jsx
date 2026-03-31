@@ -56,7 +56,7 @@ export default function FullScreenSignageDashboard() {
       {/* HEADER SECTION */}
       <Group justify="space-between" mb="xl" className="shrink-0">
         <Group gap="sm" align="center">
-          <Text fw={900} size="h" tt="uppercase" lts="0.4em">
+          <Text fw={900} size="h" tt="uppercase" lts="0.1em">
             Queue System : 
           </Text>
           
