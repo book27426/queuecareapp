@@ -95,7 +95,7 @@ export default function FullScreenSignageDashboard() {
                 <AnimatePresence mode="popLayout">
                   {
                     activeCalls.map((call, i) => (
-                      <Grid.Col span={4} key={call.id || i}>
+                      <Grid.Col span={4} key={call.id}>
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -112,17 +112,6 @@ export default function FullScreenSignageDashboard() {
                               : 'bg-slate-50 border-slate-200'
                             }`}
                           >
-                            {/* Unit Label */}
-                            <Badge 
-                              variant="white" 
-                              color={i === 0 ? "blue" : "gray"} 
-                              size="lg" 
-                              fullWidth 
-                              mb={15}
-                            >
-                              {String(call.unit || 'General')}
-                            </Badge>
-
                             {/* Queue Number */}
                             <Text 
                               fw={900} 
@@ -130,7 +119,7 @@ export default function FullScreenSignageDashboard() {
                               className="leading-none italic tracking-tighter"
                               c={i === 0 ? "white" : "#1E293B"}
                             >
-                              {String(call.id)}
+                              {String(call.number)}
                             </Text>
 
                             <Box className={`my-4 h-1 w-12 rounded-full ${i === 0 ? 'bg-blue-400' : 'bg-slate-200'}`} />
@@ -152,7 +141,7 @@ export default function FullScreenSignageDashboard() {
                                 className="leading-none"
                                 c={i === 0 ? "white" : "#1E293B"}
                               >
-                                {String(call.counter || '-')}
+                                {String(call.counter_name || '-')}
                               </Text>
                             </Stack>
                           </Paper>
@@ -178,8 +167,7 @@ export default function FullScreenSignageDashboard() {
                 {nextInLine.map((item, i) => (
                   <Box key={item.id} className={`p-6 border-b flex justify-between items-center ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                     <Stack gap={0}>
-                      <Text c="blue.6" fw={900} size="32px" className="italic leading-none">{String(item.id)}</Text>
-                      <Text size="xs" fw={700} tt="uppercase">{String(item.unit || 'General')}</Text>
+                      <Text c="blue.6" fw={900} size="32px" className="italic leading-none">{String(item.number)}</Text>
                     </Stack>
                     <Center className="bg-teal-50 px-3 py-1 rounded-lg">
                       <Timer size={14} className="text-teal-600 mr-2" />
