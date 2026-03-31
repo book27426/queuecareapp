@@ -16,6 +16,7 @@ export default function FullScreenSignageDashboard() {
   const [activeCalls, setActiveCalls] = useState([]);
   const [nextInLine, setNextInLine] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
 
   const fetchQueueData = async () => {
     if (!id) return;
@@ -28,6 +29,7 @@ export default function FullScreenSignageDashboard() {
       if (result.success && result.data) {
         setActiveCalls(Array.isArray(result.data.currently_serving) ? result.data.currently_serving : []);
         setNextInLine(Array.isArray(result.data.recent_logs) ? result.data.recent_logs : []);
+        setName(result.data.section?.name || "");
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -38,7 +40,7 @@ export default function FullScreenSignageDashboard() {
 
   useEffect(() => {
     fetchQueueData();
-    const poll = setInterval(fetchQueueData, 5000);
+    const poll = setInterval(fetchQueueData, 10000);
     const clock = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => {
       clearInterval(poll);
@@ -55,7 +57,7 @@ export default function FullScreenSignageDashboard() {
       <Group justify="space-between" mb="xl" className="shrink-0">
         <Stack gap={0}>
           <Text c="blue.7" fw={900} size="xs" tt="uppercase" lts="0.4em">Queue System</Text>
-          <Title order={1} className="uppercase italic" size="h2">{id.replace(/-/g, ' ')}</Title>
+          <Title order={1} className="uppercase italic" size="h2">{name}</Title>
         </Stack>
         
         <Paper px={32} py={12} radius="xl" withBorder className="shadow-lg bg-white">
@@ -135,7 +137,9 @@ export default function FullScreenSignageDashboard() {
         <Grid.Col span={3} className="h-full flex flex-col">
           <Group gap="sm" mb="md" className="shrink-0">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light"><MonitorPlay size={24} /></ThemeIcon>
-            <Title order={2} className="italic uppercase" size="28px">Already Calling.</Title>
+            <Title order={1} c="#1E293B" className="uppercase italic tracking-tighter" size="36px">
+              Has <span className="text-blue-600">Called.</span>
+            </Title>
           </Group>
 
           <Paper radius="56px" withBorder className="flex-1 overflow-hidden flex flex-col shadow-xl bg-white">
