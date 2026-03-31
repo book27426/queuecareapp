@@ -29,7 +29,7 @@ export default function FullScreenSignageDashboard() {
       if (result.success && result.data) {
         setActiveCalls(Array.isArray(result.data.currently_serving) ? result.data.currently_serving : []);
         setNextInLine(Array.isArray(result.data.recent_logs) ? result.data.recent_logs : []);
-        setName(result.data.section?.name || "");
+        setName(result.data.section_name || "");
       }
     } catch (error) {
       console.error("Fetch error:", error);
@@ -55,10 +55,15 @@ export default function FullScreenSignageDashboard() {
 
       {/* HEADER SECTION */}
       <Group justify="space-between" mb="xl" className="shrink-0">
-        <Stack gap={0}>
-          <Text c="blue.7" fw={900} size="xs" tt="uppercase" lts="0.4em">Queue System</Text>
-          <Title order={1} className="uppercase italic" size="h2">{name}</Title>
-        </Stack>
+        <Group gap="sm" align="center">
+          <Text fw={900} size="h" tt="uppercase" lts="0.4em">
+            Queue System : 
+          </Text>
+          
+          <Title order={1} className="uppercase italic" size="h2" c="blue.7" >
+            {name}
+          </Title>
+        </Group>
         
         <Paper px={32} py={12} radius="xl" withBorder className="shadow-lg bg-white">
           <Group gap="md">
