@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   Box, Text, Title, Group, Stack, TextInput, Textarea, ScrollArea, Modal, Select, 
@@ -14,8 +14,6 @@ import {
 } from 'lucide-react';
 import { DispenseMachine, PaperTicketContent } from "@/components/QueueTicket";
 import { motion, AnimatePresence } from 'framer-motion';
-
-
 
 const API_COUNTER = "https://queuecaredev.vercel.app/api/v1/counter";
 const API_COUNTERSEARCH = "https://queuecaredev.vercel.app/api/v1/otp_verify";
@@ -39,15 +37,17 @@ export default function CounterWorkstationPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch] = useDebouncedValue(searchQuery, 500);
+  
+  // Use a Ref to allow the interval to access the latest search without restarting the timer
+  const searchRef = useRef(searchQuery);
+  useEffect(() => { searchRef.current = searchQuery; }, [searchQuery]);
 
-  const [transferOptions, setTransferOptions] = useState([]); // To store the formatted list for Select
-  const [targetSectionId, setTargetSectionId] = useState(null); // To store chosen value
+  const [transferOptions, setTransferOptions] = useState([]);
+  const [targetSectionId, setTargetSectionId] = useState(null);
 
   useEffect(() => {
-    if (sectionaccess && sectionaccess.length > 0) {
+    if (sectionaccess?.length > 0) {
       const formatted = sectionaccess.map(s => ({
-        // Ensure the id is a string for Mantine Select, 
-        // but check if the property name in your API is 'id' or 'section_id'
         value: s.section_id?.toString() || s.id?.toString(), 
         label: s.section_name || s.name
       }));
@@ -56,73 +56,86 @@ export default function CounterWorkstationPage() {
   }, [sectionaccess]);
 
   useEffect(() => {
-    if (!opened) {
-      setTargetSectionId(null);
-    }
+    if (!opened) setTargetSectionId(null);
   }, [opened]);
 
+  // 1. Fetch Counter Data
   const fetchMainData = useCallback(async (isSilent = false) => {
     if (!isSilent) setFetchError(null);
-    setIsSyncing(true);
     try {
-      const res = await fetch(`${API_COUNTER}?id=${counterId}`, {
+      const res = await fetch(`${API_COUNTER}?id=${counterId}&section_id=${id}`, {
         method: 'GET',
         credentials: 'include',
       });
       const result = await res.json();
-      
       if (result.success) {
         setCounterInfo(result.data.counter);
         setCurrentQueue(result.data.current_queue);
         setNextQueueu(result.data.next_queues);
         setSectionAccess(result.data.section_access);
-        // NOTE: We don't setCalledList here anymore to avoid overwriting search results
       }
     } catch (err) {
       if (!isSilent) setFetchError("System sync failed.");
-    } finally {
-      setIsSyncing(false);
-      setLoading(false);
     }
-  }, [counterId]);
+  }, [counterId, id]);
 
-  // 2. Search Sync (Only Called Queues)
-  const searchCalledList = useCallback(async () => {
-    setIsSyncing(true);
+  // 2. Fetch Search/Called Data
+  const searchCalledList = useCallback(async (searchVal = "") => {
     try {
       const url = new URL(API_COUNTERSEARCH);
       url.searchParams.append('id', counterId);
-      if (searchQuery) url.searchParams.append('search', searchQuery);
+      if (searchVal) url.searchParams.append('search', searchVal);
 
       const res = await fetch(url.toString(), {
         method: 'GET',
         credentials: 'include',
       });
       const result = await res.json();
-      
       if (result.success) {
         setCalledList(result.data.called_queues || []);
       }
     } catch (err) {
       console.error("Search failed", err);
-    } finally {
-      setIsSyncing(false);
     }
-  }, [counterId, searchQuery]);
+  }, [counterId]);
 
+  // 3. Orchestrator
+  const performFullSync = useCallback(async (isSilent = false, overrideSearch = null) => {
+    setIsSyncing(true);
+    const currentSearch = overrideSearch !== null ? overrideSearch : searchRef.current;
+    
+    await Promise.all([
+      fetchMainData(isSilent),
+      searchCalledList(currentSearch)
+    ]);
+
+  setIsSyncing(false);
+  setLoading(false);
+}, [fetchMainData, searchCalledList]);
+
+  // 4. Background Timer (Stays constant)
   useEffect(() => {
-    fetchMainData();
-    const interval = setInterval(() => fetchMainData(true), 50000);
+    performFullSync();
+
+    const interval = setInterval(() => {
+      performFullSync(true);
+    }, 50000);
+
     return () => clearInterval(interval);
-  }, [fetchMainData]);
+  }, [performFullSync]);
 
+  // 5. User Typing Trigger
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    searchCalledList();
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    performFullSync(true, debouncedSearch); 
   }, [debouncedSearch, searchCalledList]);
 
   const handleQueueAction = async (actionType, transferSectionId = null, queueId = null) => {
     setIsSyncing(true);
-
     const body = {
       next: true,
       queue_detail: notes || "",
@@ -130,11 +143,11 @@ export default function CounterWorkstationPage() {
       section_id: null
     };
 
-    let queue_id = currentQueue?.id
+    let queue_id = currentQueue?.id;
     switch (actionType) {
       case 'CALL_NEXT':
         body.status = "serving";
-        queue_id = queueId
+        queue_id = queueId;
         break;
       case 'FINISH':
         body.status = "complete";
@@ -151,40 +164,30 @@ export default function CounterWorkstationPage() {
         return;
     }
 
-    // try {
-      const res = await fetch(`${API_QUEUE}?id=${queue_id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+    const res = await fetch(`${API_QUEUE}?id=${queue_id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
 
-      if (res.ok) {
-        setNotes("");
-        if (actionType === 'TRANSFER') closeTransfer();
-        fetchMainData(true);
-        searchCalledList();
-      } else {
-        const errorData = await res.json();
-        console.error("API Error:", errorData);
-        alert(`Failed: ${errorData.message || "Unknown error"}`);
-      }
-    // } catch (e) {
-    //   alert("System Error: Could not update queue.");
-    // } finally {
-    //   setIsSyncing(false);
-    // }
+    if (res.ok) {
+      setNotes("");
+      if (actionType === 'TRANSFER') closeTransfer();
+      performFullSync(true);
+    } else {
+      const errorData = await res.json();
+      alert(`Failed: ${errorData.message || "Unknown error"}`);
+      setIsSyncing(false);
+    }
   };
 
   if (loading) return <Center h="100vh" bg="#F8FAFC"><Loader color="blue" type="dots" size="xl" /></Center>;
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC] flex flex-col antialiased">
-      
       <main className="flex-1 py-8 max-w-[1750px] mx-auto w-full px-6">
         <Grid gutter={40} align="stretch">
-          
-          {/* LEFT: PATIENT INFO (8.5/12) */}
           <Grid.Col span={{ base: 12, lg: 8.5 }}>
             <Stack gap={32}>
               <Group justify="space-between">
@@ -221,14 +224,10 @@ export default function CounterWorkstationPage() {
                   </Paper>
                 </Grid.Col>
 
-                {/* ✅ SERVICE AREA: KEEP DISPENSER + PERFECT CENTERED BUTTONS */}
                 <Grid.Col span={{ base: 12, md: 6.5 }}>
                   <Paper p={40} radius={40} withBorder className="bg-slate-50/30 border-slate-100 flex flex-col items-center justify-center h-full shadow-inner relative overflow-hidden text-center">
-                    
-                    {/* Keep the Ticket Dispenser as requested */}
                     <Box className="w-full flex flex-col items-center">
                       <DispenseMachine />
-                      
                       <div className="relative w-full flex justify-center h-[300px] overflow-hidden">
                         <AnimatePresence mode="wait">
                           {currentQueue && (
@@ -253,7 +252,7 @@ export default function CounterWorkstationPage() {
                           <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                             <Button 
                               onClick={() => handleQueueAction('CALL_NEXT', null, null)}
-                              disabled={nextqueue.length === 0 || isSyncing}
+                              disabled={nextqueue?.length === 0 || isSyncing}
                               fullWidth
                               size="xl" 
                               radius="28px" 
@@ -262,56 +261,25 @@ export default function CounterWorkstationPage() {
                               className="text-2xl font-black italic shadow-2xl shadow-blue-500/20 active:scale-95 transition-all"
                               leftSection={isSyncing ? <Loader size="sm" color="white" /> : <PlayCircle size={32} />}
                             >
-                              {nextqueue.length > 0 ? "START NEXT QUEUE" : "NO PATIENTS IN LINE"}
+                              {nextqueue?.length > 0 ? "START NEXT QUEUE" : "NO PATIENTS IN LINE"}
                             </Button>
-                            {nextqueue.length > 0 && (
+                            {nextqueue?.length > 0 && (
                               <Text size="xs" fw={900} c="blue" ta="center" mt="md" className="tracking-widest opacity-60">
                                 NEXT UP: #{nextqueue[0].number}
                               </Text>
                             )}
                           </motion.div>
                         ) : (
-                          /* --- STATE B: ACTIVE (Serving Patient) --- */
-                          <motion.div
-                            key="active-state"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="w-full flex flex-col gap-6"
-                          >
+                          <motion.div key="active-state" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full flex flex-col gap-6">
                             <Group grow gap="xl">
-                              <Button 
-                                onClick={() => handleQueueAction('FINISH', null, null)} 
-                                color="teal" 
-                                radius="xl" 
-                                h={74} 
-                                className="font-black italic shadow-xl shadow-teal-500/10 active:scale-95 transition-all text-lg" 
-                                leftSection={<CheckCircle size={24} />}
-                              >
+                              <Button onClick={() => handleQueueAction('FINISH', null, null)} color="teal" radius="xl" h={74} className="font-black italic shadow-xl shadow-teal-500/10 active:scale-95 transition-all text-lg" leftSection={<CheckCircle size={24} />}>
                                 FINISH
                               </Button>
-                              <Button 
-                                onClick={() => handleQueueAction('NO_SHOW', null, null)} 
-                                color="red" 
-                                radius="xl" 
-                                h={74} 
-                                className="font-black italic shadow-xl shadow-red-500/10 active:scale-95 transition-all text-lg" 
-                                leftSection={<UserX size={24} />}
-                              >
+                              <Button onClick={() => handleQueueAction('NO_SHOW', null, null)} color="red" radius="xl" h={74} className="font-black italic shadow-xl shadow-red-500/10 active:scale-95 transition-all text-lg" leftSection={<UserX size={24} />}>
                                 NO SHOW
                               </Button>
                             </Group>
-                            
-                            <Button 
-                              onClick={openTransfer} 
-                              fullWidth 
-                              color="blue" 
-                              variant="light"
-                              radius="28px" 
-                              h={88} 
-                              className="text-2xl font-black italic border-2 border-blue-100 active:scale-95 transition-all" 
-                              rightSection={<Send size={28} />}
-                            >
+                            <Button onClick={openTransfer} fullWidth color="blue" variant="light" radius="28px" h={88} className="text-2xl font-black italic border-2 border-blue-100 active:scale-95 transition-all" rightSection={<Send size={28} />}>
                               TRANSFER PATIENT
                             </Button>
                           </motion.div>
@@ -324,27 +292,18 @@ export default function CounterWorkstationPage() {
             </Stack>
           </Grid.Col>
 
-          {/* RIGHT: WAITLIST */}
           <Grid.Col span={{ base: 12, lg: 3.5 }} className="hidden lg:block">
             <Paper radius={40} withBorder className="bg-white border-slate-100 shadow-2xl h-full overflow-hidden flex flex-col">
               <Box p={40} className="bg-slate-50/50 border-b border-slate-100">
                 <Group justify="space-between">
-                  <Stack gap={0}>
+                  <Stack gap="xs" flex={1}>
                     <Title order={3} className="text-2xl font-black text-[#1E293B] uppercase italic">Calledlist</Title>
                     <TextInput 
-                      placeholder="Search called patients..." 
+                      placeholder="Search..." 
                       leftSection={<Search size={16}/>} 
                       radius="md" 
                       value={searchQuery} 
                       onChange={(e) => setSearchQuery(e.target.value)} 
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          searchCalledList(); // Only trigger the search API
-                        }
-                      }}
-                      rightSection={
-                        isSyncing ? <Loader size="xs" /> : null
-                      }
                     />
                   </Stack>
                   {isSyncing ? <Loader size="xs" color="blue" /> : <ThemeIcon size={44} radius="xl" variant="light" color="blue"><Layers size={22} /></ThemeIcon>}
@@ -355,28 +314,19 @@ export default function CounterWorkstationPage() {
                 <Stack gap="lg">
                   <AnimatePresence mode="popLayout">
                     {calledList.map((item) => (
-                      <motion.div key={item.number} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}>
-                      <Paper p={24} radius="30px" withBorder className="bg-white border-slate-100 hover:bg-slate-50 transition-all">
-                        <Flex justify="space-between" align="center">
-                          <Stack gap={0}>
-                            {/* 2. Your updated Title (Always Blue) */}
-                            <Title order={4} className="text-3xl font-black italic tracking-tighter text-blue-600">
-                              #{item.number}
-                            </Title>
-                            
-                            {/* 3. Your updated Text (Always Dark Slate) */}
-                            <Text fw={800} size="sm" className="uppercase truncate max-w-[140px] text-[#1E293B]">
-                              {item.name}
-                            </Text>
-                          </Stack>
-                        
-                          {/* 4. Your updated Badge (Always Light variant) */}
-                          <Button onClick={() => handleQueueAction('CALL_NEXT', null, item.id)} size="lg" radius="md" variant="blue" color="white" leftSection={<PlayCircle size={12} />} className="font-bold">
-                            Recalled
-                          </Button>
-                        </Flex>
-                      </Paper>
-                    </motion.div>
+                      <motion.div key={item.id} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}>
+                        <Paper p={24} radius="30px" withBorder className="bg-white border-slate-100 hover:bg-slate-50 transition-all">
+                          <Flex justify="space-between" align="center">
+                            <Stack gap={0}>
+                              <Title order={4} className="text-3xl font-black italic tracking-tighter text-blue-600">#{item.number}</Title>
+                              <Text fw={800} size="sm" className="uppercase truncate max-w-[120px] text-[#1E293B]">{item.name}</Text>
+                            </Stack>
+                            <Button onClick={() => handleQueueAction('CALL_NEXT', null, item.id)} size="sm" radius="md" variant="filled" color="blue" leftSection={<PlayCircle size={14} />} className="font-bold">
+                              Recall
+                            </Button>
+                          </Flex>
+                        </Paper>
+                      </motion.div>
                     ))}
                   </AnimatePresence>
                 </Stack>
@@ -390,11 +340,8 @@ export default function CounterWorkstationPage() {
         <Box className="p-12">
           <Group justify="space-between" mb={40}>
             <Title order={2} className="font-black italic uppercase text-[#1E293B]">Transfer Case</Title>
-            <ActionIcon onClick={closeTransfer} variant="subtle" color="gray" radius="xl" size="xl">
-              <X size={24}/>
-            </ActionIcon>
+            <ActionIcon onClick={closeTransfer} variant="subtle" color="gray" radius="xl" size="xl"><X size={24}/></ActionIcon>
           </Group>
-
           <Stack gap="xl">
             <Select label="Target Unit" placeholder="Select destination..." data={transferOptions} value={targetSectionId} onChange={setTargetSectionId} radius="xl" size="lg" classNames={{ input: "font-bold h-16 bg-slate-50" }} />
             <Button fullWidth size="xl" radius="xl" color="blue" h={80} className="font-black italic" loading={isSyncing} disabled={!targetSectionId} onClick={() => handleQueueAction('TRANSFER', targetSectionId, null)}>
