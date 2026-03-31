@@ -320,6 +320,13 @@ export default function JoinQueuePage() {
 
 // 🏥 Facility Card Component
 function FacilityCard({ hospital, onSelect }) {
+  const minutes = hospital.estimated_wait_minutes || 0;
+
+  const formattedTime =
+    minutes >= 60
+      ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
+      : `${minutes}m`;
+      
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -10 }} onClick={() => onSelect(hospital)}>
       <Paper p={24} radius="32px" withBorder className="bg-white hover:shadow-2xl cursor-pointer transition-all border-slate-100 group">
@@ -338,13 +345,13 @@ function FacilityCard({ hospital, onSelect }) {
             <Paper withBorder p="xs" radius="lg" className="flex-1 bg-slate-50/50">
               <Stack gap={2} align="center">
                 <Text size="10px" fw={800} c="dimmed">WAITING</Text>
-                <Group gap={4}><Clock size={14} color="#2563EB" /><Text size="sm" fw={800}>{hospital.queue_count}m</Text></Group>
+                <Group gap={4}><Activity size={14} color="#2563EB" /><Text size="sm" fw={800}>{hospital.queue_count}</Text></Group>
               </Stack>
             </Paper>
             <Paper withBorder p="xs" radius="lg" className="flex-1 bg-blue-50/30 border-blue-100">
               <Stack gap={2} align="center">
                 <Text size="10px" fw={800} c="blue.6">PREDICTED</Text>
-                <Group gap={4}><Activity size={14} color="#2563EB" /><Text size="sm" fw={800} c="blue.8">{hospital.estimated_wait_minutes}m</Text></Group>
+                <Group gap={4}><Clock size={14} color="#2563EB" /><Text size="sm" fw={800} c="blue.8">{formattedTime}</Text></Group>
               </Stack>
             </Paper>
           </Group>
