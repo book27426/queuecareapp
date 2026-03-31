@@ -20,7 +20,10 @@ export default function FullScreenSignageDashboard() {
   const fetchQueueData = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`);
+     const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
       const result = await response.json();
       if (result.success && result.data) {
         setActiveCalls(Array.isArray(result.data.currently_serving) ? result.data.currently_serving : []);
@@ -69,87 +72,87 @@ export default function FullScreenSignageDashboard() {
       <Grid gutter={32} className="flex-1 min-h-0 overflow-hidden">
         
         {/* LEFT: NOW CALLING */}
-        <Grid.Col span={9} className="h-full flex flex-col">
-            <Group gap="sm" mb="md" className="shrink-0">
-              <ThemeIcon size={54} radius="xl" color="blue" variant="filled">
-                <Zap size={28} fill="white" />
-              </ThemeIcon>
-              <Title order={1} c="#1E293B" className="uppercase italic tracking-tighter" size="42px">
-                Now <span className="text-blue-600">Calling.</span>
-              </Title>
-            </Group>
+        <Grid.Col span={9} className="h-full">
+          <Group gap="sm" mb="md" className="shrink-0">
+            <ThemeIcon size={54} radius="xl" color="blue" variant="filled">
+              <Zap size={28} fill="white" />
+            </ThemeIcon>
+            <Title order={1} c="#1E293B" className="uppercase italic tracking-tighter" size="42px">
+              Now <span className="text-blue-600">Calling.</span>
+            </Title>
+          </Group>
 
-            <Paper 
-              p={40} 
-              radius="56px" 
-              withBorder 
-              className="flex-1 bg-white shadow-2xl border-slate-100 overflow-hidden"
-            >
-              <ScrollArea h="100%" scrollbarSize={0}>
-                <Grid gutter={24}>
-                  <AnimatePresence mode="popLayout">
-                    {activeCalls.map((call) => (
-                      <Grid.Col span={4} key={call.id}>
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.4 }}
-                        >
-                          <Paper
-                            radius="40px"
-                            p={30}
-                            withBorder
-                            className="flex flex-col items-center justify-center border-2 bg-slate-50 border-slate-200"
+          <Paper 
+            p={40} 
+            radius="56px" 
+            withBorder 
+            className="flex-1 bg-white shadow-2xl border-slate-100 overflow-hidden"
+          >
+            <Grid gutter={24}>
+              <AnimatePresence mode="popLayout">
+                {activeCalls.map((call) => (
+                  <Grid.Col span={4} key={call.id}>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <Paper
+                        radius="40px"
+                        p={30}
+                        withBorder
+                        className="flex flex-col items-center justify-center border-2 bg-slate-50 border-slate-200"
+                      >
+                        <div className="flex flex-col items-center w-fit mx-auto">
+                          <Text 
+                            fw={900} 
+                            size="90px" 
+                            className="leading-none italic tracking-tighter"
+                            c="blue.9"
+                            align="center"
                           >
-                            <Text 
-                              fw={900} 
-                              size="90px" 
-                              className="leading-none italic tracking-tighter"
-                              c="blue.9"
-                            >
-                              {String(call.number)}
-                            </Text>
-                            <Box className="my-4 h-1.5 w-16 rounded-full bg-slate-200" />
-                            <Stack gap={0} align="center">
-                              <Text c="dimmed" fw={800} size="sm" tt="uppercase" lts="0.1em">Counter</Text>
-                              <Text size="52px" fw={900} c="#1E293B" className="leading-none">
-                                {String(call.counter_name || '-')}
-                              </Text>
-                            </Stack>
-                          </Paper>
-                        </motion.div>
-                      </Grid.Col>
-                    ))}
-                  </AnimatePresence>
-                </Grid>
-              </ScrollArea>
-            </Paper>
+                            {String(call.number)}
+                          </Text>
+
+                          <Box className="mt-2 mb-2 h-1.5 w-full rounded-full bg-slate-200" />
+                        </div>
+                        <Stack gap={0} align="center">
+                          <Text c="dimmed" fw={800} size="sm" tt="uppercase" lts="0.1em">Counter</Text>
+                          <Text size="52px" fw={900} c="#1E293B" className="leading-none">
+                            {String(call.counter_name || '-')}
+                          </Text>
+                        </Stack>
+                      </Paper>
+                    </motion.div>
+                  </Grid.Col>
+                ))}
+              </AnimatePresence>
+            </Grid>
+          </Paper>
         </Grid.Col>
 
         {/* RIGHT: HISTORY */}
         <Grid.Col span={3} className="h-full flex flex-col">
           <Group gap="sm" mb="md" className="shrink-0">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light"><MonitorPlay size={24} /></ThemeIcon>
-            <Title order={2} className="italic uppercase" size="28px">History</Title>
+            <Title order={2} className="italic uppercase" size="28px">Already Calling.</Title>
           </Group>
 
           <Paper radius="56px" withBorder className="flex-1 overflow-hidden flex flex-col shadow-xl bg-white">
-            <ScrollArea className="flex-1" scrollbarSize={0}>
-              <SimpleGrid cols={2} spacing={0}>
-                {nextInLine.map((item, i) => (
-                  <Box 
-                    key={item.id} 
-                    className={`p-8 border-b border-r flex justify-center items-center ${
-                      (Math.floor(i / 2) + i) % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
-                    }`}
-                  >
-                    <Text c="blue.7" fw={900} size="40px" className="italic tabular-nums">
-                      {String(item.number)}
-                    </Text>
-                  </Box>
-                ))}
-              </SimpleGrid>
-            </ScrollArea>
+            <SimpleGrid cols={2} spacing={0}>
+              {nextInLine.map((item, i) => (
+                <Box 
+                  key={item.id} 
+                  className={`p-8 border-b border-r flex justify-center items-center ${
+                    (Math.floor(i / 2) + i) % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                  }`}
+                >
+                  <Text c="blue.7" fw={900} size="40px" className="italic tabular-nums">
+                    {String(item.number)}
+                  </Text>
+                </Box>
+              ))}
+            </SimpleGrid>
           </Paper>
         </Grid.Col>
       </Grid>
