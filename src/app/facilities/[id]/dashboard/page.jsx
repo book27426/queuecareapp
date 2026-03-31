@@ -3,14 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { 
-  Box, Text, Stack, Group, Title, Paper, Badge, Grid, ThemeIcon, ScrollArea, Center, Loader, LoadingOverlay 
+  Box, Text, Stack, Group, Title, Paper, Grid, ThemeIcon, ScrollArea, LoadingOverlay, SimpleGrid 
 } from '@mantine/core';
-import { Clock, Zap, Timer, MonitorPlay } from 'lucide-react';
+import { Clock, Zap, MonitorPlay } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FullScreenSignageDashboard() {
   const params = useParams();
-  // Ensure ID is a string; fallback to empty string if undefined
   const id = typeof params?.id === 'string' ? params.id : "";
   
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -21,15 +20,9 @@ export default function FullScreenSignageDashboard() {
   const fetchQueueData = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
+      const response = await fetch(`https://queuecaredev.vercel.app/api/v1/queue?id=${id}`);
       const result = await response.json();
-
       if (result.success && result.data) {
-        // Defensive mapping: ensure we always have an array
         setActiveCalls(Array.isArray(result.data.currently_serving) ? result.data.currently_serving : []);
         setNextInLine(Array.isArray(result.data.recent_logs) ? result.data.recent_logs : []);
       }
@@ -51,131 +44,111 @@ export default function FullScreenSignageDashboard() {
   }, [id]);
 
   return (
-    <Box className="relative h-screen bg-[#F8FAFC] p-6 antialiased">
+    // Main container locked to viewport height to prevent scrolling
+    <Box className="h-screen w-screen overflow-hidden bg-[#F8FAFC] p-8 flex flex-col antialiased">
       <LoadingOverlay visible={loading} overlayProps={{ blur: 2 }} />
 
-      <Group justify="space-between" mb="md" className="h-[10vh]">
+      {/* HEADER SECTION */}
+      <Group justify="space-between" mb="xl" className="shrink-0">
         <Stack gap={0}>
           <Text c="blue.7" fw={900} size="xs" tt="uppercase" lts="0.4em">Queue System</Text>
-          <Title order={1} className="uppercase italic">{id.replace(/-/g, ' ')}</Title>
+          <Title order={1} className="uppercase italic" size="h2">{id.replace(/-/g, ' ')}</Title>
         </Stack>
         
-        <Paper px={28} py={14} radius="xl" withBorder className="shadow-lg bg-white">
+        <Paper px={32} py={12} radius="xl" withBorder className="shadow-lg bg-white">
           <Group gap="md">
-            <Clock size={28} className="text-blue-600" />
-            <Text fw={900} size="40px" className="tabular-nums" style={{ lineHeight: 1 }}>
+            <Clock size={32} className="text-blue-600" />
+            <Text fw={900} size="48px" className="tabular-nums" style={{ lineHeight: 1 }}>
               {currentTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
             </Text>
           </Group>
         </Paper>
       </Group>
 
-      <Grid gutter={24} className="flex-1 min-h-0">
-        {/* --- NOW CALLING SECTION --- */}
-        <Grid.Col span={9} className="flex flex-col">
-            {/* Section Header */}
-            <Group gap="sm" mb="sm">
+      {/* BODY SECTION: flex-1 min-h-0 ensures it fits the screen exactly */}
+      <Grid gutter={32} className="flex-1 min-h-0 overflow-hidden">
+        
+        {/* LEFT: NOW CALLING */}
+        <Grid.Col span={9} className="h-full flex flex-col">
+            <Group gap="sm" mb="md" className="shrink-0">
               <ThemeIcon size={54} radius="xl" color="blue" variant="filled">
                 <Zap size={28} fill="white" />
               </ThemeIcon>
-              <Title order={1} c="#1E293B" className="uppercase italic tracking-tighter" size="38px">
+              <Title order={1} c="#1E293B" className="uppercase italic tracking-tighter" size="42px">
                 Now <span className="text-blue-600">Calling.</span>
               </Title>
             </Group>
 
-            {/* THE MAIN FRAME */}
             <Paper 
-              p={30} 
-              radius="48px" 
+              p={40} 
+              radius="56px" 
               withBorder 
-              className="flex-1 bg-white shadow-2xl border-slate-100 flex flex-col justify-start"
-              style={{ minHeight: '70vh' }} // Ensures the frame stays large even if calls are few
+              className="flex-1 bg-white shadow-2xl border-slate-100 overflow-hidden"
             >
-              <Grid gutter={20} className="h-full">
-                <AnimatePresence mode="popLayout">
-                  {
-                    activeCalls.map((call, i) => (
+              <ScrollArea h="100%" scrollbarSize={0}>
+                <Grid gutter={24}>
+                  <AnimatePresence mode="popLayout">
+                    {activeCalls.map((call) => (
                       <Grid.Col span={4} key={call.id}>
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.4, ease: "easeOut" }}
+                          transition={{ duration: 0.4 }}
                         >
                           <Paper
-                            radius="32px"
-                            p={25}
+                            radius="40px"
+                            p={30}
                             withBorder
-                            className={`flex flex-col items-center transition-all ${
-                              i === 0 
-                              ? 'bg-blue-600 border-blue-700 shadow-blue-200' 
-                              : 'bg-slate-50 border-slate-200'
-                            }`}
+                            className="flex flex-col items-center justify-center border-2 bg-slate-50 border-slate-200"
                           >
-                            {/* Queue Number */}
                             <Text 
                               fw={900} 
-                              size="100px" 
+                              size="90px" 
                               className="leading-none italic tracking-tighter"
-                              c={i === 0 ? "white" : "#1E293B"}
+                              c="blue.9"
                             >
                               {String(call.number)}
                             </Text>
-
-                            <Box className={`my-4 h-1 w-12 rounded-full ${i === 0 ? 'bg-blue-400' : 'bg-slate-200'}`} />
-
-                            {/* Counter Info */}
+                            <Box className="my-4 h-1.5 w-16 rounded-full bg-slate-200" />
                             <Stack gap={0} align="center">
-                              <Text 
-                                c={i === 0 ? "blue.1" : "dimmed"} 
-                                fw={800} 
-                                size="xs" 
-                                tt="uppercase" 
-                                lts="0.2em"
-                              >
-                                Counter
-                              </Text>
-                              <Text 
-                                fw={900} 
-                                size="60px" 
-                                className="leading-none"
-                                c={i === 0 ? "white" : "#1E293B"}
-                              >
+                              <Text c="dimmed" fw={800} size="sm" tt="uppercase" lts="0.1em">Counter</Text>
+                              <Text size="52px" fw={900} c="#1E293B" className="leading-none">
                                 {String(call.counter_name || '-')}
                               </Text>
                             </Stack>
                           </Paper>
                         </motion.div>
                       </Grid.Col>
-                    ))
-                  }
-                </AnimatePresence>
-              </Grid>
+                    ))}
+                  </AnimatePresence>
+                </Grid>
+              </ScrollArea>
             </Paper>
         </Grid.Col>
 
-        {/* RIGHT SIDE: NEXT UP */}
-        <Grid.Col span={3}>
-          <Group gap="sm" mb={20}>
+        {/* RIGHT: HISTORY */}
+        <Grid.Col span={3} className="h-full flex flex-col">
+          <Group gap="sm" mb="md" className="shrink-0">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light"><MonitorPlay size={24} /></ThemeIcon>
-            <Title order={2} className="italic uppercase">Already <span className="text-teal-500">Calling.</span></Title>
+            <Title order={2} className="italic uppercase" size="28px">History</Title>
           </Group>
 
-          <Paper radius="48px" withBorder className="h-[calc(100vh-200px)] overflow-hidden flex flex-col shadow-xl">
-            <ScrollArea className="flex-1">
-              <Stack gap={0}>
+          <Paper radius="56px" withBorder className="flex-1 overflow-hidden flex flex-col shadow-xl bg-white">
+            <ScrollArea className="flex-1" scrollbarSize={0}>
+              <SimpleGrid cols={2} spacing={0}>
                 {nextInLine.map((item, i) => (
-                  <Box key={item.id} className={`p-6 border-b flex justify-between items-center ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                    <Stack gap={0}>
-                      <Text c="blue.6" fw={900} size="32px" className="italic leading-none">{String(item.number)}</Text>
-                    </Stack>
-                    <Center className="bg-teal-50 px-3 py-1 rounded-lg">
-                      <Timer size={14} className="text-teal-600 mr-2" />
-                      <Text c="teal.9" fw={900}>{String(item.wait || '0m')}</Text>
-                    </Center>
+                  <Box 
+                    key={item.id} 
+                    className={`p-8 border-b border-r flex justify-center items-center ${
+                      (Math.floor(i / 2) + i) % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                    }`}
+                  >
+                    <Text c="blue.7" fw={900} size="40px" className="italic tabular-nums">
+                      {String(item.number)}
+                    </Text>
                   </Box>
                 ))}
-              </Stack>
+              </SimpleGrid>
             </ScrollArea>
           </Paper>
         </Grid.Col>
