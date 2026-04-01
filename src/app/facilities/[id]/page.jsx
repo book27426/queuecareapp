@@ -694,7 +694,7 @@
       <Modal opened={opened} onClose={onClose} centered radius={45} size="500px" padding={0} withCloseButton={false}>
         <Box className="p-12">
           <Group justify="space-between" mb={32}><Title order={2} className="font-black uppercase text-[#1E293B]" fs="italic">Staff List</Title><ActionIcon onClick={onClose} variant="subtle" color="gray" radius="xl" size="xl"><X size={24}/></ActionIcon></Group>
-          <ScrollArea h={400}><Stack gap="md">{(staffs || []).map((s, i) => (<Paper key={i} p={22} radius="28px" withBorder className="bg-slate-50/50 shadow-sm"><Group gap="md"><Avatar radius="xl" color="blue" variant="light" fw={800}>{s.first_name?.[0]}</Avatar><Stack gap={0}><Text fw={800} size="sm">{s.first_name} {s.last_name}</Text><Badge color="blue" variant="filled" size="xs">ACTIVE STAFF</Badge></Stack></Group></Paper>))}</Stack></ScrollArea>
+          <ScrollArea h={400}><Stack gap="md">{(staffs || []).map((s, i) => (<Paper key={i} p={22} radius="28px" withBorder className="bg-slate-50/50 shadow-sm"><Group gap="md"><Avatar radius="xl" color="blue" variant="light" fw={800}>{s.first_name?.[0]}</Avatar><Stack gap={0}><Text fw={800} size="sm">{s.first_name} {s.last_name}</Text><Badge color="blue" variant="filled" size="xs">{s.role}</Badge></Stack></Group></Paper>))}</Stack></ScrollArea>
           <Button fullWidth mt="xl" variant="light" color="blue" radius="xl" size="lg" h={64} onClick={onClose} className="font-bold">CLOSE</Button>
         </Box>
       </Modal>
