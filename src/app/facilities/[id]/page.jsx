@@ -33,6 +33,7 @@
     const [initialLoading, setInitialLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [mainSection, setMainSection] = useState(null);
+    const [role, setRole] = useState(null);
     const [listData, setListData] = useState([]); 
     const [liveQueues, setLiveQueues] = useState([]); 
     const [staffs, setStaffs] = useState([]);
@@ -49,6 +50,8 @@
     const [modalType, setModalType] = useState('SECTION');
 
     const isRedirecting = useRef(false);
+
+    const canManage = (currentRole) => ['super_admin', 'admin'].includes(currentRole?.toLowerCase());
 
     const openConsoleQr = (counter) => {
       const consoleUrl = `${window.location.origin}/facilities/${hubId}/${counter.id}`;
@@ -78,6 +81,7 @@
         if (result.success) {
           setMainSection(result.data.section);
           setListData(result.data.sub_sections || []);
+          setRole(result.data.role)
         } else if (res.status === 403) {
           router.back();
         }
@@ -139,12 +143,24 @@
     }, [fetchStaticData, fetchLiveData]);
 
     const handleDelete = async (id, deleteType) => {
-      const label = deleteType === 'COUNTER' ? 'Counter' : 'Sector';
-      if (!window.confirm(`Are you sure you want to delete this ${label}?`)) return;
+      let label = '';
+      let api = '';
+
+      if (deleteType === 'COUNTER') {
+        label = 'Counter';
+        api = API_COUNTER;
+      } else if (deleteType === 'STAFF') {
+        label = 'Staff Member';
+        api = API_STAFF; // This points to your https://.../api/v1/staff
+      } else {
+        label = 'Sector';
+        api = API_SECTION;
+      }
+
+      if (!window.confirm(`Are you sure you want to remove this ${label}?`)) return;
 
       try {
-        const api = deleteType === 'COUNTER' ? API_COUNTER : API_SECTION;
-        const res = await fetch(`${api}?id=${id}`, {
+        const res = await fetch(`${api}?id=${id}&staff_id`, {
           method: 'DELETE',
           credentials: 'include',
         });
@@ -182,39 +198,41 @@
                 <Button variant="light" color="teal" radius="xl" size="lg" h={60} leftSection={<QrCode size={20}/>} onClick={openRegistrationQr} className="font-bold">QR CODE</Button>
                 <Button variant="light" color="indigo" radius="xl" size="lg" h={60} leftSection={<MonitorPlay size={20}/>} onClick={() => router.push(`/facilities/${hubId}/dashboard`)} className="font-bold">TV DISPLAY</Button>
                 <Button variant="light" color="blue" radius="xl" size="lg" h={60} leftSection={<Users size={20}/>} onClick={fetchStaffData} className="font-bold">STAFFS</Button>
-                <Button 
-                  variant="light" 
-                  color="slate" // Using slate/gray to distinguish it as a "settings" action
-                  radius="xl" 
-                  size="lg" 
-                  h={60} 
-                  leftSection={<Pencil size={20}/>} 
-                  onClick={() => {
-                    setEditingId(mainSection?.id); 
-                    setModalType('SECTION'); 
-                    openAdd();
-                  }} 
-                  className="font-bold"
-                >
-                  EDIT HUB
-                </Button>
-                <Button 
-                  variant="light" 
-                  color="red" 
-                  radius="xl" 
-                  size="lg" 
-                  h={60} 
-                    leftSection={<Trash2 size={20} />}
-                    onClick={() => {
-                      // Call the parent's logic
-                      handleDelete(unit.id, 'SECTION')
-                      // Close the modal after clicking delete
-                      onClose(); 
-                    }}
-                    className="font-black italic uppercase"
-                  >
-                  Delete
-                </Button>
+                {canManage(role) && (
+                  <>
+                    <Button 
+                      variant="light" 
+                      color="slate" // Using slate/gray to distinguish it as a "settings" action
+                      radius="xl" 
+                      size="lg" 
+                      h={60} 
+                      leftSection={<Pencil size={20}/>} 
+                      onClick={() => {
+                        setEditingId(mainSection?.id); 
+                        setModalType('SECTION'); 
+                        openAdd();
+                      }} 
+                      className="font-bold"
+                    >
+                      EDIT HUB
+                    </Button>
+                    <Button 
+                      variant="light" 
+                      color="red" 
+                      radius="xl" 
+                      size="lg" 
+                      h={60} 
+                        leftSection={<Trash2 size={20} />}
+                        onClick={() => {
+                          handleDelete(unit.id, 'SECTION')
+                          onClose(); 
+                        }}
+                        className="font-black italic uppercase"
+                      >
+                      Delete
+                    </Button>
+                  </>
+                )}
               </Group>
             </Group>
 
@@ -241,17 +259,19 @@
                         <Text size="xs" fw={900} c="indigo" className="tracking-widest uppercase">Direct Terminal Access</Text>
                       </Stack>
                       <Group gap="xs">
-                        <Button 
-                          radius="xl" 
-                          color="indigo" 
-                          size="sm" 
-                          h={42} 
-                          leftSection={<Plus size={16}/>} 
-                          onClick={() => { setEditingId(null); setModalType('COUNTER'); openAdd(); }}
-                          className="font-black italic shadow-md active:scale-95 transition-all uppercase"
-                        >
-                          Add Counter
-                        </Button>
+                        {canManage(role) && (
+                          <Button 
+                            radius="xl" 
+                            color="indigo" 
+                            size="sm" 
+                            h={42} 
+                            leftSection={<Plus size={16}/>} 
+                            onClick={() => { setEditingId(null); setModalType('COUNTER'); openAdd(); }}
+                            className="font-black italic shadow-md active:scale-95 transition-all uppercase"
+                          >
+                            Add Counter
+                          </Button>
+                        )}
                       </Group>
                     </Group>
 
@@ -285,12 +305,16 @@
                                     <ActionIcon variant="light" color="teal" radius="xl" size="xl" onClick={() => openConsoleQr(c)}>
                                       <QrCode size={18}/>
                                     </ActionIcon>
-                                    <ActionIcon variant="light" color="indigo" radius="xl" size="xl" onClick={() => { setEditingId(c.id); setModalType('COUNTER'); openAdd(); }}>
-                                      <Pencil size={18}/>
-                                    </ActionIcon>
-                                    <ActionIcon variant="light" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
-                                      <Trash2 size={18}/>
-                                    </ActionIcon>
+                                    {canManage(role) && (
+                                      <>
+                                        <ActionIcon variant="light" color="indigo" radius="xl" size="xl" onClick={() => { setEditingId(c.id); setModalType('COUNTER'); openAdd(); }}>
+                                          <Pencil size={18}/>
+                                        </ActionIcon>
+                                        <ActionIcon variant="light" color="red" radius="xl" size="xl" onClick={() => handleDelete(c.id, 'COUNTER')}>
+                                          <Trash2 size={18}/>
+                                        </ActionIcon>
+                                      </>
+                                    )}
                                   </Group>
                                 </Group>
                                 
@@ -334,17 +358,19 @@
 
                       {/* Right Side: Badge and Button closer together */}
                       <Group gap="xs"> {/* 'gap="xs"' or 'gap={8}' keeps them very close */}
-                        <Button 
-                          radius="xl" 
-                          color="indigo" 
-                          size="sm" 
-                          h={42} 
-                          leftSection={<Plus size={16}/>} 
-                          onClick={() => { setEditingId(null); setModalType('SECTION'); openAdd(); }}
-                          className="font-black italic shadow-md active:scale-95 transition-all uppercase"
-                        >
-                          Add Sector
-                        </Button>
+                        {canManage(role) && (
+                          <Button 
+                            radius="xl" 
+                            color="indigo" 
+                            size="sm" 
+                            h={42} 
+                            leftSection={<Plus size={16}/>} 
+                            onClick={() => { setEditingId(null); setModalType('SECTION'); openAdd(); }}
+                            className="font-black italic shadow-md active:scale-95 transition-all uppercase"
+                          >
+                            Add Sector
+                          </Button>
+                        )}
                       </Group>
                     </Group>
                     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing={32}>
@@ -356,10 +382,14 @@
                                 <Group justify="space-between">
                                   <Avatar src={unit.image_url} size={60} radius="20px" color="blue" variant="light"><Building2 size={26} /></Avatar>
                                   <Group gap={4}> {/* gap={4} makes them very close */}
-                                    <ActionIcon variant="light" color="blue" radius="xl" size="xl" onClick={() => { setEditingId(unit.id); setModalType('SECTION'); openAdd(); }}><Pencil size={18}/></ActionIcon>
-                                    <ActionIcon variant="subtle" color="red" radius="xl" size="xl" onClick={() => handleDelete(unit.id, 'COUNTER')}>
-                                      <Trash2 size={18}/>
-                                    </ActionIcon>
+                                    {canManage(role) && (
+                                      <>
+                                        <ActionIcon variant="light" color="blue" radius="xl" size="xl" onClick={() => { setEditingId(unit.id); setModalType('SECTION'); openAdd(); }}><Pencil size={18}/></ActionIcon>
+                                        <ActionIcon variant="subtle" color="red" radius="xl" size="xl" onClick={() => handleDelete(unit.id, 'COUNTER')}>
+                                          <Trash2 size={18}/>
+                                        </ActionIcon>
+                                      </>
+                                    )}
                                   </Group>
                                 </Group>
                                 <Stack gap={4}>
@@ -429,7 +459,7 @@
                   : listData.find(u => u.id === editingId))
           } 
         />
-        <StaffModal opened={staffModalOpened} onClose={closeStaff} staffs={staffs} />
+        <StaffModal opened={staffModalOpened} onClose={closeStaff} staffs={staffs} role={role} />
         <QRModal 
           opened={qrModalOpened} 
           onClose={closeQr} 
@@ -689,13 +719,50 @@
   }
 
   // --- 👤 MODAL: Staff Directory ---
-  function StaffModal({ opened, onClose, staffs }) {
+  function StaffModal({ opened, onClose, staffs, role, onDelete }) {
+    const canManage = (currentRole) => ['owner', 'admin'].includes(currentRole?.toLowerCase());
     return (
       <Modal opened={opened} onClose={onClose} centered radius={45} size="500px" padding={0} withCloseButton={false}>
         <Box className="p-12">
-          <Group justify="space-between" mb={32}><Title order={2} className="font-black uppercase text-[#1E293B]" fs="italic">Staff List</Title><ActionIcon onClick={onClose} variant="subtle" color="gray" radius="xl" size="xl"><X size={24}/></ActionIcon></Group>
-          <ScrollArea h={400}><Stack gap="md">{(staffs || []).map((s, i) => (<Paper key={i} p={22} radius="28px" withBorder className="bg-slate-50/50 shadow-sm"><Group gap="md"><Avatar radius="xl" color="blue" variant="light" fw={800}>{s.first_name?.[0]}</Avatar><Stack gap={0}><Text fw={800} size="sm">{s.first_name} {s.last_name}</Text><Badge color="blue" variant="filled" size="xs">{s.role}</Badge></Stack></Group></Paper>))}</Stack></ScrollArea>
-          <Button fullWidth mt="xl" variant="light" color="blue" radius="xl" size="lg" h={64} onClick={onClose} className="font-bold">CLOSE</Button>
+          <Group justify="space-between" mb={32}>
+            <Title order={2} className="font-black uppercase text-[#1E293B]" fs="italic">Staff List</Title>
+            <ActionIcon onClick={onClose} variant="subtle" color="gray" radius="xl" size="xl">
+              <X size={24}/>
+            </ActionIcon>
+          </Group>
+
+          <ScrollArea h={400}>
+            <Stack gap="md">
+              {(staffs || []).map((s, i) => (
+                <Paper key={i} p={22} radius="28px" withBorder className="bg-slate-50/50 shadow-sm">
+                  <Group justify="space-between">
+                    <Group gap="md">
+                      <Avatar radius="xl" color="blue" variant="light" fw={800}>
+                        {s.first_name?.[0]}
+                      </Avatar>
+                      <Stack gap={0}>
+                        <Text fw={800} size="sm">{s.first_name} {s.last_name}</Text>
+                        <Badge color="blue" variant="filled" size="xs">{s.role}</Badge>
+                      </Stack>
+                    </Group>
+
+                    {/* Fix: Added 'onDelete' call and proper '&&' syntax */}
+                    {canManage(role) && !canManage(s.role) && (
+                      <ActionIcon 
+                        variant="light" 
+                        color="red" 
+                        radius="xl" 
+                        size="xl" 
+                        onClick={() => onDelete(s.id, 'STAFF')}
+                      >
+                        <Trash2 size={18}/>
+                      </ActionIcon>
+                    )}
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
+          </ScrollArea>
         </Box>
       </Modal>
     );

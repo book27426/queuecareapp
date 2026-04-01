@@ -69,6 +69,8 @@ export default function StaffManagementPage() {
     } catch (e) { alert("Delete Error"); }
   };
 
+  const canManage = (currentRole) => ['super_admin', 'admin'].includes(currentRole?.toLowerCase());
+
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
       <Container size="xl" className="py-12">
@@ -104,9 +106,14 @@ export default function StaffManagementPage() {
                     <Avatar src={f.image_url} size={64} radius="xl" color="blue" className="shadow-lg border-2 border-white">
                       <Building2 size={32} />
                     </Avatar>
+                    
                     <Group gap={8}>
-                      <ActionIcon variant="subtle" color="blue" size="lg" onClick={()=>{setEditingData(f); openAdd();}}><Pencil size={18}/></ActionIcon>
-                      <ActionIcon variant="subtle" color="red" size="lg" onClick={()=>handleDeleteSection(f.id)}><Trash2 size={18}/></ActionIcon>
+                      {canManage(f.role) && (
+                        <>
+                          <ActionIcon variant="subtle" color="blue" size="lg" onClick={()=>{setEditingData(f); openAdd();}}><Pencil size={18}/></ActionIcon>
+                          <ActionIcon variant="subtle" color="red" size="lg" onClick={()=>handleDeleteSection(f.id)}><Trash2 size={18}/></ActionIcon>
+                        </>
+                      )}
                     </Group>
                   </Group>
                   
@@ -140,7 +147,7 @@ export default function StaffManagementPage() {
       {/* --- MODALS --- */}
       <JoinSectionModal opened={joinModalOpened} onClose={closeJoin} onSuccess={fetchAllSections} />
       <MasterModal opened={addModalOpened} onClose={closeAdd} data={editingData} onSuccess={fetchAllSections} />
-      <StaffManagementModal opened={staffModalOpened} onClose={closeStaff} section={selectedSection} />
+      <StaffManagementModal opened={staffModalOpened} onClose={closeStaff} section={selectedSection} role={selectedSection?.role} />
     </Box>
   );
 }
@@ -261,7 +268,7 @@ function MasterModal({ opened, onClose, data, onSuccess }) {
 }
 
 // --- 👤 MODAL: Staff Directory ---
-function StaffManagementModal({ opened, onClose, section }) {
+function StaffManagementModal({ opened, onClose, section, role, onDelete }) {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -285,6 +292,23 @@ function StaffManagementModal({ opened, onClose, section }) {
     }
   }, [opened, section]);
 
+  const handleRemoveStaff = async (staffId, type) => {
+    if (!confirm("Remove this staff member?")) return;
+    try {
+      const res = await fetch(`${API_STAFF}?id=${staffId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        // Refresh the staff list by toggling the modal or using a state sync
+        alert("Staff removed");
+        closeStaff(); 
+      }
+    } catch (e) { alert("Error removing staff"); }
+  };
+
+  const canManage = (currentRole) => ['super_admin', 'admin'].includes(currentRole?.toLowerCase());
+  
   return (
     <Modal opened={opened} onClose={onClose} centered radius={32} size="lg" padding={0} withCloseButton={false}>
       <Box className="p-8">
@@ -294,17 +318,31 @@ function StaffManagementModal({ opened, onClose, section }) {
         </Group>
         <ScrollArea h={350} offsetScrollbars>
           <Stack gap="sm">
-            {loading ? <Center py={40}><Loader/></Center> : staffs.length > 0 ? staffs.map(s => (
-              <Paper key={s.id} p="md" radius="xl" withBorder className="bg-slate-50/50">
+            {loading ? <Center py={40}><Loader/></Center> : staffs.length > 0 ? staffs.map((s, index) => (
+              <Paper key={s.id || index} p={22} radius="28px" withBorder className="bg-slate-50/50 shadow-sm">
                 <Group justify="space-between">
                   <Group gap="md">
-                    <Avatar color="blue" radius="xl" size="sm" className="font-bold">{s.first_name?.[0]}</Avatar>
+                    <Avatar radius="xl" color="blue" variant="light" fw={800}>
+                      {s.first_name?.[0]}
+                    </Avatar>
                     <Stack gap={0}>
                       <Text fw={800} size="sm">{s.first_name} {s.last_name}</Text>
-                      <Text size="xs" c="dimmed">{s.email}</Text>
+                      <Badge color="blue" variant="filled" size="xs">{s.role}</Badge>
                     </Stack>
                   </Group>
-                  <Badge variant="light" radius="md">{s.role}</Badge>
+
+                  {/* Logic: Admins can remove anyone who isn't also an admin/super_admin */}
+                  {canManage(role) && !canManage(s.role) && (
+                    <ActionIcon 
+                      variant="light" 
+                      color="red" 
+                      radius="xl" 
+                      size="xl" 
+                      onClick={() => onDelete(s.id, 'STAFF')}
+                    >
+                      <Trash2 size={18}/>
+                    </ActionIcon>
+                  )}
                 </Group>
               </Paper>
             )) : <Center py={40}><Text c="dimmed">No staff members found.</Text></Center>}
