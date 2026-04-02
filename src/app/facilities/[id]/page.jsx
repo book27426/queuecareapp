@@ -593,7 +593,7 @@
           method: isEdit ? 'PUT' : 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: formData
+          body: JSON.stringify(formData)
         });
 
         if (res.ok) { 
