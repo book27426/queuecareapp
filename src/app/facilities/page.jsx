@@ -69,7 +69,7 @@ export default function StaffManagementPage() {
     } catch (e) { alert("Delete Error"); }
   };
 
-  const canManage = (currentRole) => ['super_admin', 'admin'].includes(currentRole?.toLowerCase());
+  const canManage = (currentRole) => ['a'].includes(currentRole?.toLowerCase());
 
   return (
     <Box className="min-h-screen bg-[#F8FAFC]">
