@@ -586,10 +586,6 @@
         
         formData.append('name', name.trim());
         formData.append('parent_id', parentId);
-        formData.append('section_id', Number(hubId));
-        
-        // Tell backend if this is a counter or a section
-        formData.append('type', type?.toLowerCase()); 
 
         if (file) formData.append('image', file);
 
