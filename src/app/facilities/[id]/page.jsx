@@ -448,6 +448,7 @@
           opened={addModalOpened} 
           onClose={closeAdd} 
           hubId={hubId} 
+          parentId={mainSection?.parent_id}
           onSuccess={refreshAll} // Changed from fetchData to refreshAll to match your function name
           type={modalType} 
           onDelete={handleDelete} // 👈 PASS THE LOGIC HERE
@@ -555,7 +556,7 @@
     );
   }
 
-  function AddUnitModal({ opened, onClose, data, hubId, onSuccess, type, onDelete }) {
+  function AddUnitModal({ opened, onClose, data, hubId, parentId, onSuccess, type, onDelete }) {
     const [name, setName] = useState('');
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState('');
@@ -584,7 +585,7 @@
         const formData = new FormData();
         
         formData.append('name', name.trim());
-        formData.append('parent_id', Number(hubId));
+        formData.append('parent_id', Number(parentId));
         formData.append('section_id', Number(hubId));
         
         // Tell backend if this is a counter or a section
