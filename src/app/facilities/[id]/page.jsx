@@ -582,18 +582,20 @@
         const isEdit = !!data;
         const api = type === 'COUNTER' ? API_COUNTER : API_SECTION;
         const url = isEdit ? `${api}?id=${data.id}` : `${api}`;
-        const formData = new FormData();
+        const wait_default = 5
         
-        formData.append('name', name.trim());
-        formData.append('parent_id', parentId);
-
-        if (file) formData.append('image', file);
+        const payload = {
+          name: name.trim(),
+          parent_id: parentId,
+          wait_default: wait_default,
+          image: file
+        };
 
         const res = await fetch(url, {
           method: isEdit ? 'PUT' : 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          headers: { 'Content-Type': 'application/json' }, // Correct for payload
+          body: JSON.stringify(payload)
         });
 
         if (res.ok) { 
