@@ -585,7 +585,7 @@
         const formData = new FormData();
         
         formData.append('name', name.trim());
-        formData.append('parent_id', Number(parentId));
+        formData.append('parent_id', parentId);
         formData.append('section_id', Number(hubId));
         
         // Tell backend if this is a counter or a section
