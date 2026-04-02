@@ -592,6 +592,7 @@
         const res = await fetch(url, {
           method: isEdit ? 'PUT' : 'POST',
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: formData
         });
 
