@@ -332,7 +332,7 @@ export default function Navbar() {
         radius="32px" withCloseButton={false} padding={0}
         size="500px"
       >
-        <Box className="bg-white relative overflow-hidden min-h-[540px]">
+        <Box className="bg-white relative">
           <Group justify="space-between" className="px-6 pt-6 absolute top-0 left-0 w-full z-10">
             {loginStep === 'otp' ? (
               <ActionIcon variant="light" color="blue" radius="xl" onClick={() => setLoginStep('phone')} size="lg">
@@ -344,15 +344,16 @@ export default function Navbar() {
             </ActionIcon>
           </Group>
 
-          <Box className="px-6 pb-12 pt-24 sm:px-14 sm:pt-28">
+          <Box className="flex flex-col items-center justify-center min-h-[70vh] px-6 pb-12 pt-12 sm:px-14 sm:pt-18">
+            
             <AnimatePresence mode="wait">
               {/* 1. STAFF ONLY VIEW: If path starts with /facilities */}
               {pathname.startsWith('/facilities') ? (
                 <motion.div key="staff-only" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <Stack gap={44}>
+                  <Stack gap={24}>
                     <Stack gap={12} align="center">
-                      <ThemeIcon size={84} radius="32px" color="blue" variant="light">
-                        <ShieldCheck size={38} />
+                      <ThemeIcon size={64} radius="32px" color="blue" variant="light">
+                        <ShieldCheck size={28} />
                       </ThemeIcon>
                       <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Staff Login</Title>
                       <Text size="sm" c="dimmed" fw={600}>กรุณาเข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่</Text>
@@ -361,7 +362,7 @@ export default function Navbar() {
                     <Button 
                       fullWidth size="xl" radius="xl" color="blue" h={68} 
                       onClick={handleStaffLogin} loading={isLoading}
-                      leftSection={<ShieldCheck size={20} />}
+                      leftSection={<ShieldCheck size={24} />}
                       className="shadow-2xl shadow-blue-500/30 font-black italic text-lg"
                     >
                       SIGN IN AS STAFF
@@ -374,9 +375,9 @@ export default function Navbar() {
                 <motion.div key="user-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   {loginStep === 'phone' ? (
                     /* --- PHONE STEP --- */
-                    <Stack gap={44}>
-                      <Stack gap={12} align="center">
-                        <ThemeIcon size={84} radius="32px" color="blue" variant="light">
+                    <Stack gap={32}>
+                      <Stack gap={8} align="center">
+                        <ThemeIcon size={64} radius="32px" color="blue" variant="light">
                           <Smartphone size={38} />
                         </ThemeIcon>
                         <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Welcome.</Title>
@@ -390,7 +391,7 @@ export default function Navbar() {
                           value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                           classNames={{ input: 'bg-slate-50 border-transparent focus:bg-white font-bold h-16 text-center text-lg' }}
                         />
-                        <Button fullWidth size="xl" radius="xl" color="blue" h={68} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg">REQUEST OTP</Button>
+                        <Button fullWidth size="xl" radius="xl" color="blue" h={64} onClick={handleRequestOTP} loading={isLoading} className="shadow-2xl shadow-blue-500/30 font-black italic text-lg">REQUEST OTP</Button>
                       </Stack>
 
                       {pathname === '/' && (
@@ -398,7 +399,7 @@ export default function Navbar() {
                           <Divider label={<Text size="xs" fw={800} c="dimmed" className="tracking-widest uppercase">Staff Portal</Text>} labelPosition="center" />
                           <UnstyledButton onClick={handleStaffLogin} className="group">
                             <Flex justify="center" align="center" gap={12} className="py-4 rounded-2xl border-2 border-slate-50 group-hover:bg-slate-50 group-hover:border-blue-100 transition-all">
-                              <ShieldCheck size={20} className="text-blue-600" />
+                              <ShieldCheck size={24} className="text-blue-600" />
                               <Text size="xs" fw={900} className="tracking-widest">SIGN IN AS STAFF</Text>
                             </Flex>
                           </UnstyledButton>
@@ -408,10 +409,10 @@ export default function Navbar() {
                     </Stack>
                   ) : (
                     /* --- OTP STEP (RESTORED) --- */
-                    <Stack gap={44} align="center">
-                      <Stack gap={16} align="center" className="text-center">
-                        <ThemeIcon size={84} radius="32px" color="blue" variant="light">
-                          <Lock size={38} />
+                    <Stack gap={24} align="center">
+                      <Stack gap={8} align="center" className="text-center">
+                        <ThemeIcon size={64} radius="32px" color="blue" variant="light">
+                          <Lock size={28} />
                         </ThemeIcon>
                         <Stack gap={4}>
                           <Title order={2} className="text-3xl font-black italic text-[#1E293B]">Verify Identity</Title>
