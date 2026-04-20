@@ -547,9 +547,6 @@
               COPY LINK
             </Button>
 
-            <Button variant="subtle" color="gray" radius="xl" onClick={onClose} className="font-bold mt-2">
-              CLOSE
-            </Button>
           </Stack>
         </Stack>
       </Modal>
