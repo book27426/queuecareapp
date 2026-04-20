@@ -54,7 +54,7 @@ export default function FullScreenSignageDashboard() {
       <LoadingOverlay visible={loading} overlayProps={{ blur: 2 }} />
 
       {/* HEADER SECTION */}
-      <Group justify="space-between" mb="xl" className="shrink-0">
+      <Group justify="space-between" mb="xs" className="shrink-0">
         <Group gap="sm" align="center">
           <Text fw={900} size="h" tt="uppercase" lts="0.1em">
             Queue System : 
@@ -94,6 +94,7 @@ export default function FullScreenSignageDashboard() {
             radius="56px" 
             withBorder 
             className="flex-1 bg-white shadow-2xl border-slate-100 overflow-hidden"
+            style={{ minHeight: '500px' }}
           >
             <Grid gutter={24}>
               <AnimatePresence mode="popLayout">
@@ -147,7 +148,7 @@ export default function FullScreenSignageDashboard() {
             </Title>
           </Group>
 
-          <Paper radius="56px" withBorder className="flex-1 overflow-hidden flex flex-col shadow-xl bg-white">
+          <Paper radius="56px" withBorder className="flex-1 overflow-hidden flex flex-col shadow-xl bg-white" style={{ minHeight: '500px' }}>
             <SimpleGrid cols={2} spacing={0}>
               {nextInLine.map((item, i) => (
                 <Box 
