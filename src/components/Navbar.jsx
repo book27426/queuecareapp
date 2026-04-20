@@ -344,7 +344,7 @@ export default function Navbar() {
             </ActionIcon>
           </Group>
 
-          <Box className="flex flex-col items-center justify-center min-h-[70vh] px-6 pb-12 pt-12 sm:px-14 sm:pt-18">
+          <Box className="flex flex-col items-center justify-center min-h-[70vh] px-6 pb-12 pt-12 sm:px-14 sm:pt-16">
             
             <AnimatePresence mode="wait">
               {/* 1. STAFF ONLY VIEW: If path starts with /facilities */}
